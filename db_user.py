@@ -1,6 +1,7 @@
 import sqlite3
 
-conn = sqlite3.connect("user.db")
+# 👉 注意：已经换新数据库名字（不用删旧的）
+conn = sqlite3.connect("user_v28.db")
 c = conn.cursor()
 
 # 用户表
@@ -28,4 +29,4 @@ CREATE TABLE IF NOT EXISTS predictions(
 conn.commit()
 conn.close()
 
-print("数据库初始化完成")
+print("数据库初始化完成 V28")
