@@ -1,36 +1,70 @@
 from flask import Flask, request, redirect, session, render_template_string
-import sqlite3, random, json, time
+import sqlite3, random, json
+
 from werkzeug.security import generate_password_hash, check_password_hash
 
-import db_user  # 自动初始化数据库（只留这一次）
-
 app = Flask(__name__)
-app.secret_key = "v29_secret"
+app.secret_key = "v31_ui"
 
 def get_db():
     return sqlite3.connect("user_v28.db")
 
 
+# ===== 首页 =====
+@app.route("/")
+def home():
+    user = session.get("username")
+
+    return render_template_string("""
+    <style>
+    body{font-family:Arial;background:#0f172a;color:#fff;text-align:center}
+    .box{margin-top:80px}
+    a{display:block;margin:10px;color:#38bdf8}
+    </style>
+
+    <div class="box">
+    <h1>🎯 彩票预测系统 V31</h1>
+
+    {% if user %}
+        <p>欢迎：{{user}}</p>
+        <a href="/dashboard">进入系统</a>
+        <a href="/rank">排行榜</a>
+        <a href="/logout">退出</a>
+    {% else %}
+        <a href="/login">登录</a>
+        <a href="/register">注册</a>
+    {% endif %}
+    </div>
+    """, user=user)
+
+
+# ===== 注册 =====
 @app.route("/register", methods=["GET","POST"])
 def register():
-    if request.method == "POST":
-        u = request.form["username"]
-        p = generate_password_hash(request.form["password"])
+    if request.method=="POST":
+        u=request.form["username"]
+        p=generate_password_hash(request.form["password"])
 
         conn=get_db(); c=conn.cursor()
         try:
             c.execute("INSERT INTO users(username,password) VALUES (?,?)",(u,p))
             conn.commit()
-            return "注册成功 <a href='/login'>登录</a>"
+            return redirect("/login")
         except:
             return "用户名已存在"
 
-    return """注册<br><form method=post>
+    return """
+    <h2>注册</h2>
+    <form method=post>
     用户:<input name=username><br>
     密码:<input name=password type=password><br>
-    <button>注册</button></form>"""
+    <button>注册</button>
+    </form>
+    <a href="/">返回</a>
+    """
 
 
+# ===== 登录 =====
 @app.route("/login", methods=["GET","POST"])
 def login():
     if request.method=="POST":
@@ -44,100 +78,85 @@ def login():
         if user and check_password_hash(user[2],p):
             session["uid"]=user[0]
             session["username"]=user[1]
-            session["vip"]=user[3]
-            session["vip_expire"]=user[4]
-            return redirect("/")
+            return redirect("/dashboard")
+
         return "登录失败"
 
-    return """登录<br><form method=post>
+    return """
+    <h2>登录</h2>
+    <form method=post>
     用户:<input name=username><br>
     密码:<input name=password type=password><br>
-    <button>登录</button></form>"""
-
-
-def check_vip():
-    if session.get("vip_expire",0) < time.time():
-        session["vip"]=0
-        return 0
-    return 1
-
-
-@app.route("/")
-def home():
-    if "uid" not in session:
-        return redirect("/login")
-
-    vip = check_vip()
-
-    rec = sorted(random.sample(range(1,36),5))
-    recs = [sorted(random.sample(range(1,36),5)) for _ in range(5)] if vip else []
-
-    return render_template_string("""
-    <h2>🎯 V29</h2>
-    <p>用户：{{u}}</p>
-    <p>VIP：{{vip}}</p>
-
-    <h3>推荐</h3>
-    {{rec}}
-
-    {% if vip %}
-    <h3>VIP多注</h3>
-    {% for r in recs %}
-    <p>{{r}}</p>
-    {% endfor %}
-    {% else %}
-    <a href="/pay">开通VIP ￥9.9/月</a>
-    {% endif %}
-
-    <br>
-    <a href="/records">命中记录</a><br>
-    <a href="/logout">退出</a>
-    """, u=session["username"], vip=vip, rec=rec, recs=recs)
-
-
-@app.route("/pay")
-def pay():
-    return """
-    <h3>支付 ￥9.9</h3>
-    <a href="https://paypal.me/1949china" target="_blank">👉 去PayPal付款</a>
-    <br><br>
-    <a href="/confirm">我已付款</a>
+    <button>登录</button>
+    </form>
+    <a href="/">返回</a>
     """
 
 
-@app.route("/confirm")
-def confirm():
+# ===== 系统主页 =====
+@app.route("/dashboard")
+def dashboard():
     if "uid" not in session:
         return redirect("/login")
 
-    expire = int(time.time()) + 30*24*3600
+    rec = sorted(random.sample(range(1,36),5))
+
+    # 模拟命中
+    hit = random.randint(0,5)
 
     conn=get_db(); c=conn.cursor()
-    c.execute("UPDATE users SET vip=1, created_at=? WHERE id=?",(expire,session["uid"]))
+    c.execute("INSERT INTO predictions(user_id,numbers,hit) VALUES (?,?,?)",
+              (session["uid"], json.dumps(rec), hit))
     conn.commit()
 
-    session["vip"]=1
-    session["vip_expire"]=expire
+    return render_template_string("""
+    <style>
+    body{background:#020617;color:#fff;text-align:center;font-family:Arial}
+    .card{background:#1e293b;padding:20px;margin:20px;border-radius:10px}
+    </style>
 
-    return "VIP开通成功 <a href='/'>返回</a>"
+    <h2>🎯 预测系统</h2>
+
+    <div class="card">
+    <h3>本期推荐</h3>
+    <p style="font-size:20px">{{rec}}</p>
+    <p>命中：{{hit}}</p>
+    </div>
+
+    <a href="/dashboard">刷新预测</a><br>
+    <a href="/rank">排行榜</a><br>
+    <a href="/">首页</a>
+    """, rec=rec, hit=hit)
 
 
-@app.route("/records")
-def records():
-    if "uid" not in session:
-        return redirect("/login")
-
+# ===== 排行榜 =====
+@app.route("/rank")
+def rank():
     conn=get_db(); c=conn.cursor()
-    c.execute("SELECT numbers,hit FROM predictions WHERE user_id=?",(session["uid"],))
-    data=c.fetchall()
 
-    return "<br>".join([str(d) for d in data])
+    c.execute("""
+    SELECT user_id, AVG(hit) as avg_hit, COUNT(*) 
+    FROM predictions
+    GROUP BY user_id
+    ORDER BY avg_hit DESC
+    LIMIT 10
+    """)
+
+    rows = c.fetchall()
+
+    html = "<h2>🏆 排行榜</h2>"
+    for i,r in enumerate(rows):
+        html += f"<p>第{i+1}名 用户{r[0]} 命中率:{round(r[1],2)} 次数:{r[2]}</p>"
+
+    html += "<br><a href='/'>返回</a>"
+    return html
 
 
+# ===== 退出 =====
 @app.route("/logout")
 def logout():
     session.clear()
-    return redirect("/login")
+    return redirect("/")
 
 
 app.run(host="0.0.0.0", port=10000)
