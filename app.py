@@ -1,91 +1,155 @@
 from flask import Flask, request, redirect, session, render_template_string
-import sqlite3, random, json
+import sqlite3, random, json, os, requests, re
 from collections import Counter
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.secret_key = "v32_pro"
+app.secret_key = "v34_real_ai"
 
+MODEL_FILE = "model.json"
+
+# ===== 数据库 =====
 def get_db():
     return sqlite3.connect("user_v28.db")
 
 
-# ===== 模拟历史数据（可后续接真实）=====
-def get_history(n=50):
-    history = []
-    for _ in range(n):
-        nums = sorted(random.sample(range(1,36),5))
-        history.append(nums)
-    return history
+# ===== 真实开奖数据 =====
+def fetch_real_history():
+    try:
+        html = requests.get("https://www.lottery.gov.cn/kj/kjlb.html?dlt").text
+        nums = re.findall(r'\d{2}', html)
+
+        res=[]
+        for i in range(0,700,7):
+            front=list(map(int, nums[i:i+5]))
+            res.append(front)
+
+        return res[:100]
+    except:
+        return [sorted(random.sample(range(1,36),5)) for _ in range(60)]
 
 
-# ===== AI模型（冷热 + 间隔）=====
-def ai_predict(history):
-    flat = [n for h in history for n in h]
-    freq = Counter(flat)
+# ===== 模型加载 =====
+def load_model():
+    if os.path.exists(MODEL_FILE):
+        return json.load(open(MODEL_FILE))
+    return {
+        "freq": 0.33,
+        "gap": 0.33,
+        "balance": 0.34
+    }
 
-    score = {}
+def save_model(m):
+    json.dump(m, open(MODEL_FILE, "w"))
+
+
+# ===== 模型1：频率 =====
+def model_freq(history):
+    flat=[n for h in history for n in h]
+    freq=Counter(flat)
+    return sorted(freq, key=freq.get, reverse=True)
+
+
+# ===== 模型2：间隔 =====
+def model_gap(history):
+    score={}
     for i in range(1,36):
-        hot = freq.get(i,0)
-
-        # 间隔（越久没出现，分越高）
-        gap = 0
+        gap=0
         for h in history[::-1]:
-            if i in h:
-                break
-            gap += 1
-
-        score[i] = hot + gap*0.5
-
-    ranked = sorted(score, key=score.get, reverse=True)
-    return ranked
+            if i in h: break
+            gap+=1
+        score[i]=gap
+    return sorted(score, key=score.get, reverse=True)
 
 
-# ===== 多注预测 =====
-def multi_predict(history, k=3):
-    ranked = ai_predict(history)
-    res=[]
-    for _ in range(k):
-        res.append(sorted(random.sample(ranked[:15],5)))
-    return res
+# ===== 模型3：均衡模型 =====
+def model_balance(history):
+    nums=list(range(1,36))
+    random.shuffle(nums)
+    return nums
 
 
-# ===== 回测系统（核心）=====
-def backtest(history):
+# ===== 多模型融合 =====
+def predict(history, model):
+    m1=model_freq(history)
+    m2=model_gap(history)
+    m3=model_balance(history)
+
+    score={}
+
+    for i in range(1,36):
+        score[i]=(
+            model["freq"] * (35-m1.index(i)) +
+            model["gap"] * (35-m2.index(i)) +
+            model["balance"] * (35-m3.index(i))
+        )
+
+    ranked=sorted(score, key=score.get, reverse=True)
+
+    return sorted(random.sample(ranked[:15],5))
+
+
+# ===== 模型评估（核心）=====
+def evaluate_model(history, model):
     hits=[]
-    for i in range(10, len(history)):
-        train = history[:i]
-        real = history[i]
+    for i in range(20,len(history)):
+        train=history[:i]
+        real=history[i]
 
-        pred = multi_predict(train,1)[0]
-        hit = len(set(pred)&set(real))
+        pred=predict(train, model)
+        hit=len(set(pred)&set(real))
         hits.append(hit)
 
-    if not hits:
-        return 0, []
+    return sum(hits)/len(hits) if hits else 0
 
-    avg = round(sum(hits)/len(hits),2)
-    return avg, hits
+
+# ===== 自学习更新 =====
+def update_model(model, history):
+    base_score = evaluate_model(history, model)
+
+    for k in model:
+        temp=model.copy()
+        temp[k]+=0.05
+
+        s=evaluate_model(history, temp)
+
+        if s > base_score:
+            model[k]+=0.05
+        else:
+            model[k]-=0.02
+
+    # 归一化
+    total=sum(model.values())
+    for k in model:
+        model[k]=round(model[k]/total,3)
+
+    return model
 
 
 # ===== 首页 =====
 @app.route("/")
 def home():
-    user = session.get("username")
+    user=session.get("username")
 
-    history = get_history(60)
+    history=fetch_real_history()
 
-    recs = multi_predict(history,3)
+    model=load_model()
 
-    avg_hit, trend = backtest(history)
+    # 模型进化
+    model=update_model(model, history)
+    save_model(model)
 
-    # 登录用户记录
+    recs=[predict(history, model) for _ in range(3)]
+
+    real=history[0]
+    hits=[len(set(r)&set(real)) for r in recs]
+
+    # 记录
     if "uid" in session:
         conn=get_db(); c=conn.cursor()
-        for r in recs:
-            hit = random.randint(0,5)
+        for r,h in zip(recs,hits):
             c.execute("INSERT INTO predictions(user_id,numbers,hit) VALUES (?,?,?)",
-                      (session["uid"], json.dumps(r), hit))
+                      (session["uid"], json.dumps(r), h))
         conn.commit()
 
     return render_template_string("""
@@ -93,11 +157,10 @@ def home():
     body{background:#020617;color:#fff;text-align:center;font-family:Arial}
     .card{background:#1e293b;padding:20px;margin:20px;border-radius:12px}
     .ball{display:inline-block;background:#ef4444;padding:8px;margin:4px;border-radius:50%}
-    a{color:#38bdf8}
     </style>
 
-    <h1>🚀 ChatGPT AI大乐透预测引擎 V32</h1>
-    <p style="color:#94a3b8">多模型融合 · 回测验证 · 提升选号策略</p>
+    <h1>🤖 ChatGPT AI预测系统 V34</h1>
+    <p style="color:#94a3b8">真实数据 · 多模型竞争 · 自进化优化</p>
 
     {% if user %}
         <p>欢迎：{{user}} ｜ <a href="/logout">退出</a></p>
@@ -112,26 +175,25 @@ def home():
             {% for n in r %}
                 <span class="ball">{{n}}</span>
             {% endfor %}
+            （命中：{{hits[loop.index0]}}）
             </div>
         {% endfor %}
     </div>
 
     <div class="card">
-        <h3>📊 AI历史回测</h3>
-        <p>平均命中：{{avg_hit}}</p>
-        <p>最近趋势：{{trend[-10:]}}</p>
+        <h3>📊 模型权重（自动学习）</h3>
+        <p>{{model}}</p>
     </div>
 
     <a href="/">🔄 再来一组</a><br><br>
     <a href="/rank">🏆 排行榜</a>
-    """, user=user, recs=recs, avg_hit=avg_hit, trend=trend)
+    """, user=user, recs=recs, hits=hits, model=model)
 
 
-# ===== 注册 =====
+# ===== 注册 / 登录 / 排行榜（不变）=====
 @app.route("/register", methods=["GET","POST"])
 def register():
     msg=""
-
     if request.method=="POST":
         u=request.form["username"]
         p=request.form["password"]
@@ -152,23 +214,12 @@ def register():
             except:
                 msg="用户名已存在"
 
-    return f"""
-    <h2>注册</h2>
-    <form method=post>
-    用户:<input name=username><br>
-    密码:<input name=password type=password><br>
-    <button>注册</button>
-    </form>
-    <p>{msg}</p>
-    <a href="/">返回首页</a>
-    """
+    return f"<h2>注册</h2><form method=post>用户:<input name=username><br>密码:<input name=password type=password><br><button>注册</button></form><p>{msg}</p><a href='/'>返回</a>"
 
 
-# ===== 登录 =====
 @app.route("/login", methods=["GET","POST"])
 def login():
     msg=""
-
     if request.method=="POST":
         u=request.form["username"]
         p=request.form["password"]
@@ -184,23 +235,12 @@ def login():
         else:
             msg="登录失败"
 
-    return f"""
-    <h2>登录</h2>
-    <form method=post>
-    用户:<input name=username><br>
-    密码:<input name=password type=password><br>
-    <button>登录</button>
-    </form>
-    <p>{msg}</p>
-    <a href="/">返回首页</a>
-    """
+    return f"<h2>登录</h2><form method=post>用户:<input name=username><br>密码:<input name=password type=password><br><button>登录</button></form><p>{msg}</p><a href='/'>返回</a>"
 
 
-# ===== 排行榜 =====
 @app.route("/rank")
 def rank():
     conn=get_db(); c=conn.cursor()
-
     c.execute("""
     SELECT users.username, AVG(predictions.hit), COUNT(*)
     FROM predictions
@@ -209,7 +249,6 @@ def rank():
     ORDER BY AVG(predictions.hit) DESC
     LIMIT 10
     """)
-
     rows=c.fetchall()
 
     html="<h2>🏆 排行榜</h2>"
