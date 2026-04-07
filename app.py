@@ -134,7 +134,11 @@ body{background:#0f172a;color:white;text-align:center;font-family:Arial;}
 <body>
 
 <h2>🎯 大乐透 V17</h2>
-<h3>👤 用户：{{ user }}</h3>
+<h3>👤 {{ user }}</h3>
+
+{% if user == "游客" %}
+<div class="btn" onclick="location.href='/login'">登录 / 注册</div>
+{% endif %}
 
 <div class="card">
 <h3>最新开奖</h3>
@@ -156,10 +160,8 @@ body{background:#0f172a;color:white;text-align:center;font-family:Arial;}
 
 @app.route("/")
 def home():
-    if "user" not in session:
-        return redirect("/login")
-
     latest,rec = run()
-    return render_template_string(HTML, latest=latest, rec=rec, user=session["user"])
+    user = session.get("user", "游客")
+    return render_template_string(HTML, latest=latest, rec=rec, user=user)
 
 app.run(host="0.0.0.0", port=10000)
