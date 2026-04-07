@@ -1,3 +1,4 @@
+import db_user
 from flask import Flask, request, redirect, session, render_template_string
 import sqlite3, random, json, time
 from werkzeug.security import generate_password_hash, check_password_hash
