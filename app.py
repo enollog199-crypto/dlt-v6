@@ -1,56 +1,63 @@
-from flask import Flask, request, redirect, session, render_template_string
+from flask import Flask, render_template_string
 import sqlite3, random, json, os, requests, re
 from collections import Counter
-from werkzeug.security import generate_password_hash, check_password_hash
+import threading, time
 
 app = Flask(__name__)
-app.secret_key = "v34_real_ai"
+app.secret_key = "v34_real_ai_2026_auto"
 
 MODEL_FILE = "model.json"
+MODEL_HISTORY_FILE = "model_history.json"
+HISTORY_FILE = "history.json"
+
+lock = threading.Lock()
 
 # ===== 数据库 =====
 def get_db():
     return sqlite3.connect("user_v28.db")
 
-
-# ===== 真实开奖数据 =====
+# ===== 历史数据 =====
 def fetch_real_history():
+    if os.path.exists(HISTORY_FILE):
+        return json.load(open(HISTORY_FILE))
     try:
-        html = requests.get("https://www.lottery.gov.cn/kj/kjlb.html?dlt").text
+        html = requests.get("https://www.lottery.gov.cn/kj/kjlb.html?dlt", timeout=5).text
         nums = re.findall(r'\d{2}', html)
-
         res=[]
-        for i in range(0,700,7):
+        for i in range(0, min(len(nums),700), 7):
             front=list(map(int, nums[i:i+5]))
             res.append(front)
-
-        return res[:100]
+        history = res[:100]
     except:
-        return [sorted(random.sample(range(1,36),5)) for _ in range(60)]
+        history = [sorted(random.sample(range(1,36),5)) for _ in range(60)]
+    json.dump(history, open(HISTORY_FILE,"w"))
+    return history
 
-
-# ===== 模型加载 =====
+# ===== 模型加载/保存 =====
 def load_model():
     if os.path.exists(MODEL_FILE):
         return json.load(open(MODEL_FILE))
-    return {
-        "freq": 0.33,
-        "gap": 0.33,
-        "balance": 0.34
-    }
+    return {"freq":0.33,"gap":0.33,"balance":0.34}
 
-def save_model(m):
-    json.dump(m, open(MODEL_FILE, "w"))
+def save_model(model):
+    json.dump(model, open(MODEL_FILE,"w"))
 
+def load_model_history():
+    if os.path.exists(MODEL_HISTORY_FILE):
+        return json.load(open(MODEL_HISTORY_FILE))
+    return []
 
-# ===== 模型1：频率 =====
+def save_model_history(model):
+    history = load_model_history()
+    history.append(model.copy())
+    json.dump(history, open(MODEL_HISTORY_FILE,"w"))
+
+# ===== 模型 =====
 def model_freq(history):
-    flat=[n for h in history for n in h]
-    freq=Counter(flat)
-    return sorted(freq, key=freq.get, reverse=True)
+    flat = [n for h in history for n in h]
+    freq = Counter(flat)
+    return sorted(range(1,36), key=lambda x: freq.get(x,0), reverse=True)
 
-
-# ===== 模型2：间隔 =====
 def model_gap(history):
     score={}
     for i in range(1,36):
@@ -61,208 +68,201 @@ def model_gap(history):
         score[i]=gap
     return sorted(score, key=score.get, reverse=True)
 
-
-# ===== 模型3：均衡模型 =====
 def model_balance(history):
     nums=list(range(1,36))
     random.shuffle(nums)
     return nums
 
-
-# ===== 多模型融合 =====
 def predict(history, model):
-    m1=model_freq(history)
-    m2=model_gap(history)
-    m3=model_balance(history)
-
+    m_list = {
+        "freq": model_freq(history),
+        "gap": model_gap(history),
+        "balance": model_balance(history)
+    }
     score={}
-
     for i in range(1,36):
-        score[i]=(
-            model["freq"] * (35-m1.index(i)) +
-            model["gap"] * (35-m2.index(i)) +
-            model["balance"] * (35-m3.index(i))
-        )
+        s=0
+        for k,v in m_list.items():
+            rank=(35 - v.index(i))/35
+            s += model[k]*rank
+        score[i]=s
+    nums, weights = zip(*score.items())
+    total=sum(weights)
+    probs=[w/total for w in weights]
+    numbers = sorted(random.choices(nums, probs, k=5))
+    confidence = round(sum(score[n] for n in numbers)/5,3)
+    hit = sum([1 for n in numbers if n in history[0]])
+    return numbers, confidence, hit
 
-    ranked=sorted(score, key=score.get, reverse=True)
-
-    return sorted(random.sample(ranked[:15],5))
-
-
-# ===== 模型评估（核心）=====
 def evaluate_model(history, model):
     hits=[]
     for i in range(20,len(history)):
         train=history[:i]
         real=history[i]
-
-        pred=predict(train, model)
-        hit=len(set(pred)&set(real))
-        hits.append(hit)
-
+        pred,_ ,_= predict(train, model)
+        hits.append(len(set(pred)&set(real)))
     return sum(hits)/len(hits) if hits else 0
 
-
-# ===== 自学习更新 =====
 def update_model(model, history):
     base_score = evaluate_model(history, model)
-
+    alpha = 0.03
     for k in model:
-        temp=model.copy()
-        temp[k]+=0.05
-
-        s=evaluate_model(history, temp)
-
+        temp = model.copy()
+        temp[k] += alpha
+        s = evaluate_model(history, temp)
         if s > base_score:
-            model[k]+=0.05
+            model[k] += alpha
         else:
-            model[k]-=0.02
-
-    # 归一化
+            model[k] -= alpha/2
     total=sum(model.values())
     for k in model:
         model[k]=round(model[k]/total,3)
-
+    save_model_history(model)
     return model
 
+# ===== 自动预测线程 =====
+dynamic_data = {"recs":[],"heatmap":[0]*35,"hits":[],"confs":[],"model":{}}
+
+def auto_predict_loop():
+    history = fetch_real_history()
+    model = load_model()
+    while True:
+        with lock:
+            model = update_model(model, history)
+            save_model(model)
+            heatmap=[0]*35
+            recs=[]
+            hits=[]
+            confs=[]
+            for _ in range(3):
+                numbers, conf, hit = predict(history, model)
+                recs.append((numbers, conf))
+                for n in numbers:
+                    heatmap[n-1]+=1
+                hits.append(hit)
+                confs.append(conf)
+            dynamic_data.update({
+                "recs":recs,
+                "heatmap":heatmap,
+                "hits":hits,
+                "confs":confs,
+                "model":model
+            })
+        time.sleep(2)
+
+threading.Thread(target=auto_predict_loop, daemon=True).start()
 
 # ===== 首页 =====
 @app.route("/")
 def home():
-    user=session.get("username")
-
-    history=fetch_real_history()
-
-    model=load_model()
-
-    # 模型进化
-    model=update_model(model, history)
-    save_model(model)
-
-    recs=[predict(history, model) for _ in range(3)]
-
-    real=history[0]
-    hits=[len(set(r)&set(real)) for r in recs]
-
-    # 记录
-    if "uid" in session:
-        conn=get_db(); c=conn.cursor()
-        for r,h in zip(recs,hits):
-            c.execute("INSERT INTO predictions(user_id,numbers,hit) VALUES (?,?,?)",
-                      (session["uid"], json.dumps(r), h))
-        conn.commit()
-
+    with lock:
+        data = dynamic_data.copy()
     return render_template_string("""
-    <style>
-    body{background:#020617;color:#fff;text-align:center;font-family:Arial}
-    .card{background:#1e293b;padding:20px;margin:20px;border-radius:12px}
-    .ball{display:inline-block;background:#ef4444;padding:8px;margin:4px;border-radius:50%}
-    </style>
-
-    <h1>🤖 ChatGPT AI预测系统 V34</h1>
-    <p style="color:#94a3b8">真实数据 · 多模型竞争 · 自进化优化</p>
-
-    {% if user %}
-        <p>欢迎：{{user}} ｜ <a href="/logout">退出</a></p>
-    {% else %}
-        <a href="/login">登录</a> | <a href="/register">注册</a>
-    {% endif %}
+    <html>
+    <head>
+        <title>V34.6 AI 动态预测</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <style>
+            body{background:#020617;color:#fff;text-align:center;font-family:Arial;}
+            .card{background:#1e293b;padding:20px;margin:20px;border-radius:12px;}
+            .ball{display:inline-block;background:#ef4444;padding:8px;margin:4px;border-radius:50%}
+        </style>
+    </head>
+    <body>
+    <h1>🤖 ChatGPT AI预测系统 V34.6</h1>
 
     <div class="card">
         <h3>🔥 AI推荐（3注）</h3>
-        {% for r in recs %}
-            <div>
-            {% for n in r %}
-                <span class="ball">{{n}}</span>
-            {% endfor %}
-            （命中：{{hits[loop.index0]}}）
-            </div>
-        {% endfor %}
+        <div id="predictions"></div>
     </div>
 
     <div class="card">
-        <h3>📊 模型权重（自动学习）</h3>
-        <p>{{model}}</p>
+        <h3>📊 当前推荐号码热度</h3>
+        <canvas id="heatChart" width="800" height="200"></canvas>
     </div>
 
-    <a href="/">🔄 再来一组</a><br><br>
-    <a href="/rank">🏆 排行榜</a>
-    """, user=user, recs=recs, hits=hits, model=model)
+    <div class="card">
+        <h3>📊 模型权重演化趋势</h3>
+        <canvas id="modelChart" width="800" height="200"></canvas>
+    </div>
 
+    <div class="card">
+        <h3>📊 自我预测统计（动态动画）</h3>
+        <canvas id="hitTrend" width="800" height="200"></canvas>
+    </div>
 
-# ===== 注册 / 登录 / 排行榜（不变）=====
-@app.route("/register", methods=["GET","POST"])
-def register():
-    msg=""
-    if request.method=="POST":
-        u=request.form["username"]
-        p=request.form["password"]
+    <script>
+    let dynamicData = {{data|tojson}};
 
-        if len(u)<4 or len(u)>12:
-            msg="用户名4-12位"
-        elif not u.isalnum():
-            msg="仅字母数字"
-        elif len(p)<6:
-            msg="密码至少6位"
-        else:
-            conn=get_db(); c=conn.cursor()
-            try:
-                c.execute("INSERT INTO users(username,password) VALUES (?,?)",
-                          (u,generate_password_hash(p)))
-                conn.commit()
-                return redirect("/login")
-            except:
-                msg="用户名已存在"
+    function renderPredictions(){
+        const div = document.getElementById('predictions');
+        div.innerHTML="";
+        dynamicData.recs.forEach(r=>{
+            let html = "";
+            r[0].forEach(n=> html += `<span class='ball'>${n}</span>`);
+            html += ` （信心: ${r[1]})`;
+            div.innerHTML += "<div>"+html+"</div>";
+        });
+    }
+    renderPredictions();
 
-    return f"<h2>注册</h2><form method=post>用户:<input name=username><br>密码:<input name=password type=password><br><button>注册</button></form><p>{msg}</p><a href='/'>返回</a>"
+    // 图表初始化
+    const heatCtx = document.getElementById('heatChart').getContext('2d');
+    const heatChart = new Chart(heatCtx, {
+        type:'bar',
+        data:{
+            labels:[...Array(35).keys()].map(x=>x+1),
+            datasets:[{label:'号码热度', data:dynamicData.heatmap, backgroundColor:'rgba(239,68,68,0.7)'}]
+        },
+        options:{responsive:true,scales:{y:{beginAtZero:true}}}
+    });
 
+    const modelCtx = document.getElementById('modelChart').getContext('2d');
+    const modelChart = new Chart(modelCtx, {
+        type:'line',
+        data:{
+            labels:[...Array( dynamicData.model ? 1 : 0 ).keys()],
+            datasets:[
+                {label:'freq', data:[dynamicData.model.freq||0], borderColor:'rgba(34,197,94,1)', fill:false},
+                {label:'gap', data:[dynamicData.model.gap||0], borderColor:'rgba(59,130,246,1)', fill:false},
+                {label:'balance', data:[dynamicData.model.balance||0], borderColor:'rgba(245,158,11,1)', fill:false}
+            ]
+        },
+        options:{responsive:true, plugins:{legend:{display:true}}, scales:{y:{beginAtZero:true}}}
+    });
 
-@app.route("/login", methods=["GET","POST"])
-def login():
-    msg=""
-    if request.method=="POST":
-        u=request.form["username"]
-        p=request.form["password"]
+    const hitCtx = document.getElementById('hitTrend').getContext('2d');
+    const hitChart = new Chart(hitCtx, {
+        type:'line',
+        data:{
+            labels:[1,2,3],
+            datasets:[{
+                label:'预测命中率动态',
+                data:dynamicData.hits,
+                borderColor:'rgba(14,165,233,1)',
+                fill:false
+            }]
+        },
+        options:{responsive:true, animation:{duration:1000}, scales:{y:{beginAtZero:true,max:5}}}
+    });
 
-        conn=get_db(); c=conn.cursor()
-        c.execute("SELECT * FROM users WHERE username=?",(u,))
-        user=c.fetchone()
+    // 每2秒更新
+    setInterval(()=>{
+        fetch(window.location.href).then(r=>r.text()).then(html=>{
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html,'text/html');
+            dynamicData = {{data|tojson}};
+            renderPredictions();
+            heatChart.data.datasets[0].data = dynamicData.heatmap;
+            heatChart.update();
+            hitChart.data.datasets[0].data = dynamicData.hits;
+            hitChart.update();
+        });
+    },2000);
+    </script>
+    </body>
+    </html>
+    """, data=data)
 
-        if user and check_password_hash(user[2],p):
-            session["uid"]=user[0]
-            session["username"]=user[1]
-            return redirect("/")
-        else:
-            msg="登录失败"
-
-    return f"<h2>登录</h2><form method=post>用户:<input name=username><br>密码:<input name=password type=password><br><button>登录</button></form><p>{msg}</p><a href='/'>返回</a>"
-
-
-@app.route("/rank")
-def rank():
-    conn=get_db(); c=conn.cursor()
-    c.execute("""
-    SELECT users.username, AVG(predictions.hit), COUNT(*)
-    FROM predictions
-    JOIN users ON predictions.user_id = users.id
-    GROUP BY users.username
-    ORDER BY AVG(predictions.hit) DESC
-    LIMIT 10
-    """)
-    rows=c.fetchall()
-
-    html="<h2>🏆 排行榜</h2>"
-    for i,r in enumerate(rows):
-        html+=f"<p>{i+1}. {r[0]} 命中:{round(r[1],2)} 次数:{r[2]}</p>"
-
-    html+="<a href='/'>返回</a>"
-    return html
-
-
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect("/")
-
-
-app.run(host="0.0.0.0", port=10000)
+if __name__=="__main__":
+    app.run(host="0.0.0.0", port=10000)
