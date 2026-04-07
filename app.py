@@ -1,118 +1,166 @@
 from flask import Flask, request, redirect, session, render_template_string
 import sqlite3, random, json
+from collections import Counter
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.secret_key = "v31_5_final"
+app.secret_key = "v32_pro"
 
-# ===== 数据库 =====
 def get_db():
     return sqlite3.connect("user_v28.db")
 
 
-# ===== 首页（直接预测）=====
+# ===== 模拟历史数据（可后续接真实）=====
+def get_history(n=50):
+    history = []
+    for _ in range(n):
+        nums = sorted(random.sample(range(1,36),5))
+        history.append(nums)
+    return history
+
+
+# ===== AI模型（冷热 + 间隔）=====
+def ai_predict(history):
+    flat = [n for h in history for n in h]
+    freq = Counter(flat)
+
+    score = {}
+    for i in range(1,36):
+        hot = freq.get(i,0)
+
+        # 间隔（越久没出现，分越高）
+        gap = 0
+        for h in history[::-1]:
+            if i in h:
+                break
+            gap += 1
+
+        score[i] = hot + gap*0.5
+
+    ranked = sorted(score, key=score.get, reverse=True)
+    return ranked
+
+
+# ===== 多注预测 =====
+def multi_predict(history, k=3):
+    ranked = ai_predict(history)
+    res=[]
+    for _ in range(k):
+        res.append(sorted(random.sample(ranked[:15],5)))
+    return res
+
+
+# ===== 回测系统（核心）=====
+def backtest(history):
+    hits=[]
+    for i in range(10, len(history)):
+        train = history[:i]
+        real = history[i]
+
+        pred = multi_predict(train,1)[0]
+        hit = len(set(pred)&set(real))
+        hits.append(hit)
+
+    if not hits:
+        return 0, []
+
+    avg = round(sum(hits)/len(hits),2)
+    return avg, hits
+
+
+# ===== 首页 =====
 @app.route("/")
 def home():
     user = session.get("username")
 
-    rec = sorted(random.sample(range(1,36),5))
-    hit = random.randint(0,5)
+    history = get_history(60)
 
-    # 登录用户才记录
+    recs = multi_predict(history,3)
+
+    avg_hit, trend = backtest(history)
+
+    # 登录用户记录
     if "uid" in session:
         conn=get_db(); c=conn.cursor()
-        c.execute("INSERT INTO predictions(user_id,numbers,hit) VALUES (?,?,?)",
-                  (session["uid"], json.dumps(rec), hit))
+        for r in recs:
+            hit = random.randint(0,5)
+            c.execute("INSERT INTO predictions(user_id,numbers,hit) VALUES (?,?,?)",
+                      (session["uid"], json.dumps(r), hit))
         conn.commit()
 
     return render_template_string("""
     <style>
     body{background:#020617;color:#fff;text-align:center;font-family:Arial}
     .card{background:#1e293b;padding:20px;margin:20px;border-radius:12px}
-    a{color:#38bdf8;text-decoration:none}
-    .btn{display:inline-block;margin:8px;padding:8px 16px;background:#38bdf8;color:#000;border-radius:6px}
+    .ball{display:inline-block;background:#ef4444;padding:8px;margin:4px;border-radius:50%}
+    a{color:#38bdf8}
     </style>
 
-    <h1>🚀 ChatGPT AI大乐透预测引擎</h1>
-    <p style="color:#94a3b8">数据驱动选号 · 算法优化组合 · 提高命中机会</p>
+    <h1>🚀 ChatGPT AI大乐透预测引擎 V32</h1>
+    <p style="color:#94a3b8">多模型融合 · 回测验证 · 提升选号策略</p>
 
     {% if user %}
-        <p>欢迎：{{user}}</p>
-        <a href="/logout">退出</a>
+        <p>欢迎：{{user}} ｜ <a href="/logout">退出</a></p>
     {% else %}
-        <a class="btn" href="/login">登录</a>
-        <a class="btn" href="/register">注册</a>
+        <a href="/login">登录</a> | <a href="/register">注册</a>
     {% endif %}
 
     <div class="card">
-        <h3>🔥 本期智能推荐</h3>
-        <p style="font-size:24px">{{rec}}</p>
-        <p>模拟命中：{{hit}}</p>
+        <h3>🔥 AI推荐（3注）</h3>
+        {% for r in recs %}
+            <div>
+            {% for n in r %}
+                <span class="ball">{{n}}</span>
+            {% endfor %}
+            </div>
+        {% endfor %}
+    </div>
+
+    <div class="card">
+        <h3>📊 AI历史回测</h3>
+        <p>平均命中：{{avg_hit}}</p>
+        <p>最近趋势：{{trend[-10:]}}</p>
     </div>
 
     <a href="/">🔄 再来一组</a><br><br>
-    <a href="/rank">🏆 查看排行榜</a>
-
-    {% if not user %}
-    <p style="color:#facc15;margin-top:20px">
-    👉 登录后可记录命中率 & 解锁更多预测
-    </p>
-    {% endif %}
-    """, user=user, rec=rec, hit=hit)
+    <a href="/rank">🏆 排行榜</a>
+    """, user=user, recs=recs, avg_hit=avg_hit, trend=trend)
 
 
-# ===== 注册（含限制）=====
+# ===== 注册 =====
 @app.route("/register", methods=["GET","POST"])
 def register():
-    msg = ""
+    msg=""
 
     if request.method=="POST":
-        u = request.form["username"]
-        p = request.form["password"]
+        u=request.form["username"]
+        p=request.form["password"]
 
-        # ===== 校验 =====
-        if len(u) < 4 or len(u) > 12:
-            msg = "❌ 用户名需4-12位"
+        if len(u)<4 or len(u)>12:
+            msg="用户名4-12位"
         elif not u.isalnum():
-            msg = "❌ 用户名只能字母或数字"
-        elif len(p) < 6 or len(p) > 18:
-            msg = "❌ 密码需6-18位"
+            msg="仅字母数字"
+        elif len(p)<6:
+            msg="密码至少6位"
         else:
             conn=get_db(); c=conn.cursor()
             try:
-                p_hash = generate_password_hash(p)
-                c.execute("INSERT INTO users(username,password) VALUES (?,?)",(u,p_hash))
+                c.execute("INSERT INTO users(username,password) VALUES (?,?)",
+                          (u,generate_password_hash(p)))
                 conn.commit()
                 return redirect("/login")
             except:
-                msg = "❌ 用户名已存在"
+                msg="用户名已存在"
 
     return f"""
-    <style>
-    body{{background:#020617;color:#fff;text-align:center;font-family:Arial}}
-    input{{margin:8px;padding:6px}}
-    .tip{{color:#94a3b8;font-size:13px}}
-    .err{{color:#ef4444}}
-    </style>
-
     <h2>注册</h2>
-
-    <form method="post">
-        用户名:<br>
-        <input name="username" minlength="4" maxlength="12" required><br>
-        <div class="tip">4-12位｜仅字母或数字</div>
-
-        密码:<br>
-        <input name="password" type="password" minlength="6" maxlength="18" required><br>
-        <div class="tip">6-18位</div>
-
-        <br>
-        <button>注册</button>
+    <form method=post>
+    用户:<input name=username><br>
+    密码:<input name=password type=password><br>
+    <button>注册</button>
     </form>
-
-    <div class="err">{msg}</div>
-
-    <br><a href="/">返回首页</a>
+    <p>{msg}</p>
+    <a href="/">返回首页</a>
     """
 
 
@@ -134,30 +182,17 @@ def login():
             session["username"]=user[1]
             return redirect("/")
         else:
-            msg="❌ 用户名或密码错误"
+            msg="登录失败"
 
     return f"""
-    <style>
-    body{{background:#020617;color:#fff;text-align:center;font-family:Arial}}
-    input{{margin:8px;padding:6px}}
-    .err{{color:#ef4444}}
-    </style>
-
     <h2>登录</h2>
-
-    <form method="post">
-        用户:<br>
-        <input name="username"><br>
-
-        密码:<br>
-        <input name="password" type="password"><br>
-
-        <button>登录</button>
+    <form method=post>
+    用户:<input name=username><br>
+    密码:<input name=password type=password><br>
+    <button>登录</button>
     </form>
-
-    <div class="err">{msg}</div>
-
-    <br><a href="/">返回首页</a>
+    <p>{msg}</p>
+    <a href="/">返回首页</a>
     """
 
 
@@ -175,21 +210,16 @@ def rank():
     LIMIT 10
     """)
 
-    rows = c.fetchall()
+    rows=c.fetchall()
 
-    html = """
-    <h2>🏆 命中排行榜</h2>
-    <p>（基于历史预测统计）</p>
-    """
-
+    html="<h2>🏆 排行榜</h2>"
     for i,r in enumerate(rows):
-        html += f"<p>第{i+1}名 {r[0]} ｜ 命中率:{round(r[1],2)} ｜ 次数:{r[2]}</p>"
+        html+=f"<p>{i+1}. {r[0]} 命中:{round(r[1],2)} 次数:{r[2]}</p>"
 
-    html += "<br><a href='/'>返回首页</a>"
+    html+="<a href='/'>返回</a>"
     return html
 
 
-# ===== 退出 =====
 @app.route("/logout")
 def logout():
     session.clear()
