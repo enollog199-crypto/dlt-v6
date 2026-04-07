@@ -3,13 +3,14 @@ import sqlite3, random, json
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.secret_key = "v31_5_b"
+app.secret_key = "v31_5_final"
 
+# ===== 数据库 =====
 def get_db():
     return sqlite3.connect("user_v28.db")
 
 
-# ===== 首页（核心入口）=====
+# ===== 首页（直接预测）=====
 @app.route("/")
 def home():
     user = session.get("username")
@@ -60,28 +61,57 @@ def home():
     """, user=user, rec=rec, hit=hit)
 
 
-# ===== 注册 =====
+# ===== 注册（含限制）=====
 @app.route("/register", methods=["GET","POST"])
 def register():
+    msg = ""
+
     if request.method=="POST":
-        u=request.form["username"]
-        p=generate_password_hash(request.form["password"])
+        u = request.form["username"]
+        p = request.form["password"]
 
-        conn=get_db(); c=conn.cursor()
-        try:
-            c.execute("INSERT INTO users(username,password) VALUES (?,?)",(u,p))
-            conn.commit()
-            return redirect("/login")
-        except:
-            return "用户名已存在"
+        # ===== 校验 =====
+        if len(u) < 4 or len(u) > 12:
+            msg = "❌ 用户名需4-12位"
+        elif not u.isalnum():
+            msg = "❌ 用户名只能字母或数字"
+        elif len(p) < 6 or len(p) > 18:
+            msg = "❌ 密码需6-18位"
+        else:
+            conn=get_db(); c=conn.cursor()
+            try:
+                p_hash = generate_password_hash(p)
+                c.execute("INSERT INTO users(username,password) VALUES (?,?)",(u,p_hash))
+                conn.commit()
+                return redirect("/login")
+            except:
+                msg = "❌ 用户名已存在"
 
-    return """
+    return f"""
+    <style>
+    body{{background:#020617;color:#fff;text-align:center;font-family:Arial}}
+    input{{margin:8px;padding:6px}}
+    .tip{{color:#94a3b8;font-size:13px}}
+    .err{{color:#ef4444}}
+    </style>
+
     <h2>注册</h2>
-    <form method=post>
-    用户:<input name=username><br>
-    密码:<input name=password type=password><br>
-    <button>注册</button>
+
+    <form method="post">
+        用户名:<br>
+        <input name="username" minlength="4" maxlength="12" required><br>
+        <div class="tip">4-12位｜仅字母或数字</div>
+
+        密码:<br>
+        <input name="password" type="password" minlength="6" maxlength="18" required><br>
+        <div class="tip">6-18位</div>
+
+        <br>
+        <button>注册</button>
     </form>
+
+    <div class="err">{msg}</div>
+
     <br><a href="/">返回首页</a>
     """
 
@@ -89,6 +119,8 @@ def register():
 # ===== 登录 =====
 @app.route("/login", methods=["GET","POST"])
 def login():
+    msg=""
+
     if request.method=="POST":
         u=request.form["username"]
         p=request.form["password"]
@@ -101,16 +133,30 @@ def login():
             session["uid"]=user[0]
             session["username"]=user[1]
             return redirect("/")
+        else:
+            msg="❌ 用户名或密码错误"
 
-        return "登录失败"
+    return f"""
+    <style>
+    body{{background:#020617;color:#fff;text-align:center;font-family:Arial}}
+    input{{margin:8px;padding:6px}}
+    .err{{color:#ef4444}}
+    </style>
 
-    return """
     <h2>登录</h2>
-    <form method=post>
-    用户:<input name=username><br>
-    密码:<input name=password type=password><br>
-    <button>登录</button>
+
+    <form method="post">
+        用户:<br>
+        <input name="username"><br>
+
+        密码:<br>
+        <input name="password" type="password"><br>
+
+        <button>登录</button>
     </form>
+
+    <div class="err">{msg}</div>
+
     <br><a href="/">返回首页</a>
     """
 
