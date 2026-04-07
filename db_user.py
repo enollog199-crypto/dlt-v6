@@ -3,7 +3,6 @@ import sqlite3
 conn = sqlite3.connect("user_v28.db")
 c = conn.cursor()
 
-# ===== 用户表 =====
 c.execute("""
 CREATE TABLE IF NOT EXISTS users(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -14,7 +13,6 @@ CREATE TABLE IF NOT EXISTS users(
 )
 """)
 
-# ===== 预测记录表（命中统计用）=====
 c.execute("""
 CREATE TABLE IF NOT EXISTS predictions(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
