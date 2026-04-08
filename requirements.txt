@@ -4,3 +4,4 @@ werkzeug
 gunicorn
 numpy
 pandas
+scipy
