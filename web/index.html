@@ -1,130 +1,95 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8"><title>Dextro AI - 卓越版决策中心</title>
+    <meta charset="UTF-8"><title>Dextro AI - 深度智能控制台</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --bg: #020617; --card: #0f172a; --accent: #38bdf8; --gold: #f59e0b; }
-        body { background: var(--bg); color: #e2e8f0; font-family: system-ui; margin: 0; padding-bottom: 50px; }
-        .nav { background: var(--card); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; }
-        .container { max-width: 1200px; margin: 25px auto; display: grid; grid-template-columns: 2fr 1fr; gap: 20px; padding: 0 20px; }
-        .card { background: var(--card); border-radius: 12px; padding: 20px; border: 1px solid #1e293b; margin-bottom: 20px; }
-        .ball { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; margin-right: 5px; font-weight: bold; font-size: 12px; }
-        .red { background: #ef4444; color: white; }
-        .blue { background: #3b82f6; color: white; }
-        .btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: bold; transition: 0.3s; }
-        .btn-accent { background: var(--accent); color: #020617; }
-        .btn-gold { background: var(--gold); color: #020617; }
-        .btn-outline { background: transparent; border: 1px solid #334155; color: #94a3b8; }
-        .wallet { display: flex; align-items: center; gap: 15px; background: #1e293b; padding: 10px 20px; border-radius: 50px; }
-        table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; color: #64748b; font-size: 12px; padding: 12px; border-bottom: 2px solid #1e293b; }
-        td { padding: 12px; border-bottom: 1px solid #1e293b; }
-        .algo-badge { font-size: 10px; background: #334155; padding: 2px 6px; border-radius: 4px; color: var(--accent); }
+        :root { --bg: #050b18; --card: #0f172a; --accent: #38bdf8; --gold: #f59e0b; }
+        body { background: var(--bg); color: #f8fafc; font-family: 'Segoe UI', system-ui; margin: 0; }
+        .header { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); padding: 15px 30px; display: flex; justify-content: space-between; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #1e293b; }
+        .grid { max-width: 1200px; margin: 20px auto; display: grid; grid-template-columns: 2fr 1fr; gap: 20px; padding: 0 20px; }
+        .card { background: var(--card); border-radius: 16px; padding: 24px; border: 1px solid #1e293b; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .ball { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 10px; margin-right: 8px; font-weight: 800; font-size: 14px; background: #1e293b; transition: 0.3s; }
+        .red { color: #f87171; border: 1px solid #f87171; }
+        .blue { color: #60a5fa; border: 1px solid #60a5fa; }
+        .conf-bar { background: #1e293b; height: 6px; border-radius: 3px; margin-top: 10px; overflow: hidden; }
+        .conf-progress { background: var(--accent); height: 100%; transition: 1s ease-out; }
+        .btn-gold { background: var(--gold); color: #000; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        td { padding: 16px 8px; border-bottom: 1px solid #1e293b; font-size: 14px; }
     </style>
 </head>
 <body>
-    <div class="nav">
-        <div style="color:var(--accent); font-weight:bold; font-size:1.4rem;">DEXTRO AI <span style="font-weight:100; color:#64748b;">PRO V9</span></div>
+    <div class="header">
+        <div style="font-size: 1.2rem; font-weight: 900; letter-spacing: 1px;">DEXTRO <span style="color:var(--accent)">AI V10</span></div>
         <div style="display:flex; align-items:center; gap:20px;">
-            <div class="wallet">
-                <span style="color:var(--gold);">🪙 {{ "%.1f"|format(credits) }}</span>
-                {% if can_checkin %}
-                <form action="/checkin" method="post"><button class="btn btn-gold" style="padding:4px 10px;">签到领金</button></form>
-                {% else %}<span style="color:#64748b; font-size:12px;">今日已领</span>{% endif %}
-            </div>
-            <button class="btn btn-outline" onclick="document.getElementById('pwdModal').style.display='flex'">修改密码</button>
+            <div style="background:#1e293b; padding:5px 15px; border-radius:20px; font-size:14px;">🪙 余额: <b>{{ "%.0f"|format(credits) }}</b></div>
+            {% if can_checkin %}<form action="/checkin" method="post"><button class="btn-gold">每日签到</button></form>{% endif %}
             <a href="/logout" style="color:#ef4444; text-decoration:none; font-size:13px;">安全退出</a>
         </div>
     </div>
 
-    <div class="container">
-        <div>
-            <div class="card" style="border: 2px solid var(--accent); position: relative; overflow: hidden;">
-                <div style="position:absolute; right:-20px; top:-20px; background:var(--accent); color:#020617; transform:rotate(45deg); padding:30px; font-size:10px; font-weight:bold;">NEXT PRED</div>
-                <h3 style="margin:0 0 20px 0;">🔮 智胜决策核心 (第 {{ records[0].p }} 期)</h3>
-                <div style="margin: 25px 0;">
+    <div class="grid">
+        <main>
+            <div class="card" style="border-top: 4px solid var(--accent);">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <h3 style="margin:0;">🔮 深度自回归预测 ({{ records[0].p }}期)</h3>
+                    <div style="text-align:right;">
+                        <span style="font-size:12px; color:#64748b;">模型置信度: {{ records[0].conf }}%</span>
+                        <div class="conf-bar" style="width:100px;"><div class="conf-progress" style="width:{{ records[0].conf }}%"></div></div>
+                    </div>
+                </div>
+                <div style="margin: 30px 0;">
                     {% for n in records[0].r %}<span class="ball red">{{ "%02d"|format(n) }}</span>{% endfor %}
-                    <span style="color:#334155; margin:0 10px; font-size:20px;">|</span>
+                    <span style="margin: 0 10px; color:#334155;">|</span>
                     {% for n in records[0].b %}<span class="ball blue">{{ "%02d"|format(n) }}</span>{% endfor %}
                 </div>
-                <div style="display:flex; gap:10px;">
-                    <span class="algo-badge">计算引擎：{{ records[0].src }}</span>
-                    <span class="algo-badge" style="color:#22c55e;">投注建议：单倍博冷</span>
-                </div>
+                <div style="font-size:12px; color:#64748b;">引擎状态：<span style="color:#22c55e;">● 运算中</span> ({{ records[0].src }})</div>
             </div>
 
-            <div class="card">
-                <h3>📜 历史比对与实战核验</h3>
+            <div class="card" style="margin-top:20px;">
+                <h3>📜 实战回归校验</h3>
                 <table>
-                    <thead><tr><th>期号</th><th>预测详情</th><th>命中</th><th>模拟收益</th></tr></thead>
-                    <tbody>
-                        {% for r in records[1:] %}
-                        <tr>
-                            <td><b>{{ r.p }}</b><br><small style="color:#64748b">{{ r.d }}</small></td>
-                            <td><div style="display:flex; align-items:center; gap:5px;">
-                                {% for n in r.r %}<span class="ball red" style="width:20px;height:20px;font-size:9px;">{{ n }}</span>{% endfor %}
-                                <span style="color:#334155">|</span>
-                                {% for n in r.b %}<span class="ball blue" style="width:20px;height:20px;font-size:9px;">{{ n }}</span>{% endfor %}
-                            </div><small style="color:#64748b">源: {{ r.src }}</small></td>
-                            <td style="color:var(--accent); font-weight:bold;">{{ r.hr }}+{{ r.hb }}</td>
-                            <td style="color:{% if r.win > 0 %}#22c55e{% else %}#64748b{% endif %}; font-weight:bold;">+{{ r.win }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
+                    {% for r in records[1:] %}
+                    <tr>
+                        <td><b>{{ r.p }}</b><br><small style="color:#64748b">{{ r.d }}</small></td>
+                        <td>
+                            {% for n in r.r %}<span class="ball red" style="width:22px;height:22px;font-size:10px;">{{n}}</span>{% endfor %}
+                            {% for n in r.b %}<span class="ball blue" style="width:22px;height:22px;font-size:10px;">{{n}}</span>{% endfor %}
+                        </td>
+                        <td style="color:var(--accent); font-weight:bold;">{{ r.hr }}+{{ r.hb }}</td>
+                        <td style="color:#22c55e;">+{{ r.win }}</td>
+                    </tr>
+                    {% endfor %}
                 </table>
             </div>
-        </div>
+        </main>
 
-        <div>
+        <aside>
             <div class="card">
-                <h3>📈 命中率波动图</h3>
-                <canvas id="hitChart" height="200"></canvas>
+                <h3 style="margin-top:0;">📈 预测偏离度趋势</h3>
+                <canvas id="mainChart"></canvas>
             </div>
-
-            <div class="card">
-                <h3>🏆 算法实验室效能排行榜</h3>
-                <div style="font-size:12px;">
-                    {% for stat in algo_stats %}
-                    <div style="display:flex; justify-content:space-between; margin-bottom:12px; padding:10px; background:#1e293b; border-radius:8px;">
-                        <span>{{ stat[0] }}</span>
-                        <span style="color:var(--accent);">命中率: {{ "%.1f"|format(stat[2]/stat[1]) }}</span>
-                    </div>
-                    {% endfor %}
+            <div class="card" style="margin-top:20px;">
+                <h3 style="margin-top:0;">🏆 模拟盈利榜</h3>
+                {% for top in top_users %}
+                <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #1e293b;">
+                    <span>{{ loop.index }}. {{ top[0] }}</span>
+                    <span style="color:var(--gold);">🪙 {{ "%.0f"|format(top[1]) }}</span>
                 </div>
+                {% endfor %}
             </div>
-
-            <div class="card" style="background: linear-gradient(135deg, #0f172a, #1e3a8a);">
-                <h3>💡 风险提示</h3>
-                <p style="font-size:11px; line-height:1.6; color:#94a3b8; margin:0;">
-                    本系统仅供娱乐与技术研究使用。基于历史数据的增强学习模型（Reinforcement Learning）无法预测博弈过程中的随机扰动。请理性对待模拟数据。
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <div id="pwdModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); align-items:center; justify-content:center; z-index:100;">
-        <div class="card" style="width:300px;">
-            <h3>修改访问密码</h3>
-            <form action="/change_password" method="post">
-                <input name="new_password" type="password" placeholder="输入新密码" style="width:100%; padding:10px; background:#1e293b; border:1px solid #334155; color:white; margin-bottom:15px; border-radius:6px;" required>
-                <div style="display:flex; gap:10px;">
-                    <button type="submit" class="btn btn-accent" style="flex:1;">确认修改</button>
-                    <button type="button" class="btn btn-outline" style="flex:1;" onclick="document.getElementById('pwdModal').style.display='none'">取消</button>
-                </div>
-            </form>
-        </div>
+        </aside>
     </div>
 
     <script>
-        const ctx = document.getElementById('hitChart').getContext('2d');
-        new Chart(ctx, {
+        new Chart(document.getElementById('mainChart'), {
             type: 'line',
             data: {
                 labels: {{ chart.labels|tojson }},
-                datasets: [{ label: '命中', data: {{ chart.hits|tojson }}, borderColor: '#38bdf8', backgroundColor: 'rgba(56,189,248,0.1)', fill: true, tension: 0.4 }]
+                datasets: [{ label: '命中', data: {{ chart.hits|tojson }}, borderColor: '#38bdf8', tension: 0.4, fill: true, backgroundColor: 'rgba(56,189,248,0.1)' }]
             },
-            options: { plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 7, grid: { color: '#1e293b' } }, x: { grid: { display: false } } } }
+            options: { plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 7, grid: { color: '#1e293b' } } } }
         });
     </script>
 </body>
