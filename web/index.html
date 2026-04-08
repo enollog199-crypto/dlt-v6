@@ -1,29 +1,23 @@
 <html>
 <head>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-body{background:#020617;color:#fff;text-align:center;font-family:Arial;}
+body{background:#020617;color:#fff;font-family:Arial;text-align:center;}
 .card{background:#1e293b;margin:20px;padding:20px;border-radius:12px;}
-.ball{display:inline-block;margin:5px;padding:10px;border-radius:50%;}
+.ball{display:inline-block;margin:4px;padding:8px;border-radius:50%;}
 .red{background:#ef4444;}
 .blue{background:#3b82f6;}
+.green{color:#22c55e;}
+.gray{color:#94a3b8;}
 </style>
 </head>
 
 <body>
 
-<h1>💰 大乐透 AI V46.2</h1>
-
-{% if user %}
-<p>欢迎 {{user}} ｜ <a href="/logout">退出</a></p>
-{% else %}
-<a href="/login">登录</a> | <a href="/register">注册</a>
-{% endif %}
+<h1>🎯 大乐透 V49 专业版</h1>
 
 <div class="card">
 <h3>📊 最新开奖</h3>
 <p>期号：{{latest.period}}</p>
-<p>日期：{{latest.date}}</p>
 
 {% for n in latest.red %}
 <span class="ball red">{{n}}</span>
@@ -35,46 +29,58 @@ body{background:#020617;color:#fff;text-align:center;font-family:Arial;}
 </div>
 
 <div class="card">
-<h3>🤖 AI推荐</h3>
+<h3>🤖 AI预测</h3>
 
-{% for p in preds %}
-<div>
-<p>{{p.mode}}</p>
-{% for n in p.red %}<span class="ball red">{{n}}</span>{% endfor %}
-<br>
-{% for n in p.blue %}<span class="ball blue">{{n}}</span>{% endfor %}
-<p>命中：{{p.hit}}</p>
-<hr>
-</div>
+<p>🎯 胆码：
+{% for n in pred.dan %}
+<span class="ball red">{{n}}</span>
 {% endfor %}
+</p>
+
+<p>❌ 杀号：
+<span class="gray">
+{% for n in pred.kill %}
+{{n}} 
+{% endfor %}
+</span>
+</p>
+
+<p>
+{% for n in pred.red %}
+<span class="ball red">{{n}}</span>
+{% endfor %}
+<br>
+{% for n in pred.blue %}
+<span class="ball blue">{{n}}</span>
+{% endfor %}
+</p>
+
 </div>
 
 <div class="card">
-<h3>📈 命中趋势</h3>
-<canvas id="chart"></canvas>
-</div>
+<h3>📈 近10期对比</h3>
 
-<div class="card">
-<h3>💰 ROI分析</h3>
-<p>期数：{{stats.round}}</p>
-<p>投入：{{stats.cost}}</p>
-<p>收益：{{stats.win}}</p>
-<p>ROI：{{roi}}</p>
-</div>
+<table border="1" style="width:100%;color:white;">
+<tr><th>期号</th><th>AI预测</th><th>实际</th><th>命中</th></tr>
 
-<script>
-new Chart(document.getElementById("chart"), {
-    type:'line',
-    data:{
-        labels:{{trend|tojson}},
-        datasets:[{
-            label:'命中数',
-            data:{{trend|tojson}},
-            borderWidth:2
-        }]
-    }
-});
-</script>
+{% for r in records %}
+<tr>
+<td>{{r.period}}</td>
+<td>
+{% for n in r.pred.red %}{{n}} {% endfor %} |
+{% for n in r.pred.blue %}{{n}} {% endfor %}
+</td>
+<td>
+{% for n in r.real.red %}{{n}} {% endfor %} |
+{% for n in r.real.blue %}{{n}} {% endfor %}
+</td>
+<td class="green">{{r.hit}}</td>
+</tr>
+{% endfor %}
+
+</table>
+
+</div>
 
 </body>
 </html>
