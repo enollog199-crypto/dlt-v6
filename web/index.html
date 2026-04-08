@@ -65,6 +65,7 @@
 
     <div class="dashboard">
         <main>
+            {% if records and records|length > 0 %}
             <div class="card" style="border-bottom: 4px solid var(--cyan);">
                 <div style="display:flex; justify-content:space-between;">
                     <div>
@@ -98,21 +99,28 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for r in records[1:11] %}
-                            <tr>
-                                <td style="color:#64748b; background: rgba(0,0,0,0.1);">{{r.period}}</td>
-                                {% for i in range(1, 36) %}
-                                    <td>{% if i in r.red %}<span class="ball-s hit-red">{{i}}</span>{% endif %}</td>
+                            {% if records|length > 1 %}
+                                {% for r in records[1:11] %}
+                                <tr>
+                                    <td style="color:#64748b; background: rgba(0,0,0,0.1);">{{r.period}}</td>
+                                    {% for i in range(1, 36) %}
+                                        <td>{% if i in r.red %}<span class="ball-s hit-red">{{i}}</span>{% endif %}</td>
+                                    {% endfor %}
+                                    {% for i in range(1, 13) %}
+                                        <td>{% if i in r.blue %}<span class="ball-s hit-blue">{{i}}</span>{% endif %}</td>
+                                    {% endfor %}
+                                </tr>
                                 {% endfor %}
-                                {% for i in range(1, 13) %}
-                                    <td>{% if i in r.blue %}<span class="ball-s hit-blue">{{i}}</span>{% endif %}</td>
-                                {% endfor %}
-                            </tr>
-                            {% endfor %}
+                            {% else %}
+                                <tr><td colspan="48" style="padding:20px; color:#64748b;">历史记录加载中...</td></tr>
+                            {% endif %}
                         </tbody>
                     </table>
                 </div>
             </div>
+            {% else %}
+            <div class="card">系统初始化中，请稍后并刷新...</div>
+            {% endif %}
         </main>
 
         <aside>
@@ -142,10 +150,9 @@
     new Chart(ctx, {
         type: 'line',
         data: {
-            // 注意：这里使用的是 lab_list 和 val_list，确保与 app.py 一致
-            labels: {{ chart_data.lab_list | tojson }},
+            labels: {{ chart_data.lab_list | tojson if chart_data.lab_list else [] }},
             datasets: [{
-                data: {{ chart_data.val_list | tojson }},
+                data: {{ chart_data.val_list | tojson if chart_data.val_list else [] }},
                 borderColor: '#22d3ee',
                 backgroundColor: 'rgba(34, 211, 238, 0.1)',
                 borderWidth: 3,
