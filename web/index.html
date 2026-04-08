@@ -3,107 +3,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DEXTRO AI | 智慧决策终端</title>
+    <title>大乐透 AI | 决策中心</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root { --bg: #030712; --card: rgba(17, 24, 39, 0.8); --cyan: #22d3ee; --pink: #f43f5e; --border: rgba(255, 255, 255, 0.08); }
-        body { background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, var(--bg) 70%); color: #f1f5f9; font-family: 'Inter', system-ui, sans-serif; margin: 0; padding: 15px; }
-        .container { max-width: 1300px; margin: 0 auto; }
-        header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
-        .logo-area h1 { font-size: 22px; font-weight: 900; margin: 0; background: linear-gradient(to right, #fff, var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .status-pill { font-size: 10px; background: rgba(34, 211, 238, 0.1); color: var(--cyan); padding: 3px 10px; border-radius: 20px; border: 1px solid rgba(34,211,238,0.2); }
-        .grid { display: grid; grid-template-columns: 1fr 320px; gap: 20px; }
-        .card { background: var(--card); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 20px; padding: 20px; margin-bottom: 20px; }
-        .predict-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .engine-label { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
-        .engine-label::before { content: ""; width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
-        .core-l::before { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
-        .anti-l::before { background: var(--pink); box-shadow: 0 0 8px var(--pink); }
-        .ball-group { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 15px 0; }
-        .ball { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; transition: 0.3s; }
-        .b-core-r { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: #fff; }
-        .b-core-b { background: rgba(34, 211, 238, 0.05); border: 1px solid rgba(34,211,238,0.2); color: var(--cyan); }
-        .b-anti-r { background: linear-gradient(135deg, #f43f5e, #9f1239); color: #fff; box-shadow: 0 6px 15px rgba(244,63,94,0.3); }
-        .b-anti-b { background: linear-gradient(135deg, #06b6d4, #0891b2); color: #fff; box-shadow: 0 6px 15px rgba(6,182,212,0.3); }
-        .matrix-table { width: 100%; border-collapse: collapse; font-size: 10px; text-align: center; }
-        .matrix-table th { color: #475569; padding: 8px 2px; }
-        .matrix-table td { padding: 5px 1px; border: 1px solid rgba(255,255,255,0.02); }
-        .dot { width: 16px; height: 16px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; }
-        .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-        .bar-bg { flex: 1; height: 5px; background: rgba(255,255,255,0.05); border-radius: 3px; }
-        .bar-fill { height: 100%; background: var(--cyan); border-radius: 3px; }
-        #clock { font-size: 16px; font-weight: 700; color: #fff; }
-        .countdown { color: #f59e0b; font-family: monospace; font-size: 12px; font-weight: bold; }
-        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } .predict-grid { grid-template-columns: 1fr; } }
+        body { background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, var(--bg) 70%); color: #f1f5f9; font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
+        .logo h1 { font-size: 24px; margin: 0; background: linear-gradient(to right, #fff, var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        .nav-links a { color: #94a3b8; text-decoration: none; font-size: 13px; margin-left: 15px; }
+        
+        /* 预测卡片布局 */
+        .predict-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .card { background: var(--card); backdrop-filter: blur(10px); border: 1px solid var(--border); border-radius: 20px; padding: 20px; }
+        
+        .engine-tag { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; margin-bottom: 10px; display: inline-block; background: rgba(255,255,255,0.1); }
+        .ball-group { display: flex; gap: 8px; justify-content: center; margin: 15px 0; }
+        .ball { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; border: 1px solid var(--border); }
+        .red-b { background: rgba(244,63,94,0.1); color: var(--pink); }
+        .blue-b { background: rgba(34,211,238,0.1); color: var(--cyan); }
+
+        /* 表格样式 */
+        .matrix-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: center; }
+        .matrix-table th { color: #64748b; padding: 10px; border-bottom: 1px solid var(--border); }
+        .matrix-table td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.02); }
+        .dot { width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; }
+
+        #clock { font-family: monospace; color: var(--cyan); font-weight: bold; }
     </style>
 </head>
 <body>
 <div class="container">
     <header>
-        <div class="logo-area">
-            <h1>DEXTRO NEURAL</h1>
-            <div><span class="status-pill">AI 核心就绪</span><span class="status-pill" style="margin-left:5px; border-color:var(--pink); color:var(--pink)">博弈引擎同步</span></div>
-        </div>
-        <div style="text-align: right">
-            <div id="clock">00:00:00</div>
-            <div class="countdown">距离封盘: <span id="timer">--:--:--</span></div>
+        <div class="logo"><h1>DEXTRO NEURAL AI</h1></div>
+        <div class="nav-links">
+            <span id="clock">00:00:00</span>
+            {% if logged_in %}
+                <a href="/logout">退出登录</a>
+            {% else %}
+                <a href="/login">登录终端</a>
+                <a href="/register" style="color:var(--cyan)">注册账号</a>
+            {% endif %}
         </div>
     </header>
-    <div class="grid">
-        <main>
-            <div class="predict-grid">
-                <div class="card">
-                    <div class="engine-label core-l">Core Engine / 统计预测</div>
-                    <div style="font-size: 11px; color: #64748b;">第 {{ records[0].period }} 期 · 基于历史大数据趋势</div>
-                    <div class="ball-group">
-                        {% for n in core.red %}<div class="ball b-core-r">{{ "%02d"|format(n) }}</div>{% endfor %}
-                        {% for n in core.blue %}<div class="ball b-core-b">{{ "%02d"|format(n) }}</div>{% endfor %}
-                    </div>
-                </div>
-                <div class="card" style="border-color: rgba(244,63,94,0.3); background: rgba(244,63,94,0.02);">
-                    <div class="engine-label anti-l">Anti-Hot Engine / 实时避热</div>
-                    <div style="font-size: 11px; color: #64748b;">已剔除全网热门: <span style="color:var(--pink)">{{ crowd.red[:3]|join(',') }}...</span></div>
-                    <div class="ball-group">
-                        {% for n in anti.red %}<div class="ball b-anti-r">{{ "%02d"|format(n) }}</div>{% endfor %}
-                        {% for n in anti.blue %}<div class="ball b-anti-b">{{ "%02d"|format(n) }}</div>{% endfor %}
-                    </div>
-                </div>
+
+    <div class="predict-section">
+        {% for p in predictions %}
+        <div class="card" style="border-top: 4px solid {{p.color}}">
+            <div class="engine-tag" style="color:{{p.color}}">{{ p.type }}</div>
+            <div style="font-size: 12px; color: #94a3b8;">{{ p.desc }}</div>
+            <div class="ball-group">
+                {% for n in p.red %}<div class="ball red-b">{{ "%02d"|format(n) }}</div>{% endfor %}
+                {% for n in p.blue %}<div class="ball blue-b">{{ "%02d"|format(n) }}</div>{% endfor %}
             </div>
-            <div class="card">
-                <div style="font-size:12px; font-weight:bold; margin-bottom:15px; color:#94a3b8">趋势特征矩阵</div>
-                <div style="overflow-x: auto;">
-                    <table class="matrix-table">
-                        <thead><tr><th>期号</th>{% for i in range(1, 36) %}<th>{{i}}</th>{% endfor %}<th></th>{% for i in range(1, 13) %}<th>{{i}}</th>{% endfor %}</tr></thead>
-                        <tbody>
-                            {% for r in records[1:9] %}
-                            <tr><td style="color:#64748b">{{r.period}}</td>{% for i in range(1, 36) %}<td>{% if i in r.red %}<span class="dot" style="background:var(--pink); color:#fff">{{i}}</span>{% endif %}</td>{% endfor %}<td style="border-left:1px solid var(--border)"></td>{% for i in range(1, 13) %}<td>{% if i in r.blue %}<span class="dot" style="background:var(--cyan); color:#000">{{i}}</span>{% endif %}</td>{% endfor %}</tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 300px; gap: 20px;">
+        <div class="card">
+            <div style="margin-bottom:15px; font-weight:bold;">趋势追踪矩阵 (最近 10 期)</div>
+            <div style="overflow-x: auto;">
+                <table class="matrix-table">
+                    <thead>
+                        <tr><th>期号</th><th>红球序列</th><th>蓝球</th><th>命中</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for r in records[1:11] %}
+                        <tr>
+                            <td style="color:#64748b">{{ r.period }}</td>
+                            <td>
+                                {% for n in r.red %}<span class="dot" style="background:var(--pink); color:#fff; margin:0 2px;">{{n}}</span>{% endfor %}
+                            </td>
+                            <td>
+                                {% for n in r.blue %}<span class="dot" style="background:var(--cyan); color:#000; margin:0 2px;">{{n}}</span>{% endfor %}
+                            </td>
+                            <td style="font-weight:bold; color:var(--cyan)">{{ r.hit }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
-        </main>
+        </div>
+
         <aside>
             <div class="card">
-                <div style="font-size:12px; font-weight:bold; margin-bottom:15px; color:#94a3b8">实时权值分布</div>
-                {% for n, v in top_numbers %}
-                <div class="bar-row"><span style="width:18px; font-size:11px;">{{n}}</span><div class="bar-bg"><div class="bar-fill" style="width:{{v*12}}%"></div></div><span style="font-size:10px; color:#475569">{{v}}</span></div>
-                {% endfor %}
+                <div style="color:var(--pink); font-size:12px; font-weight:bold; margin-bottom:10px;">🔥 全网热度剔除名单</div>
+                <div style="font-size:11px; color:#94a3b8; margin-bottom:15px;">以下号码在博弈型预测中已被降权：</div>
+                <div style="display:flex; flex-wrap:wrap; gap:5px;">
+                    {% for n in crowd.red %}
+                    <span style="background:rgba(255,255,255,0.05); padding:2px 8px; border-radius:4px; font-size:12px;">{{n}}</span>
+                    {% endfor %}
+                </div>
+                <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:15px;">
+                    <div style="font-size:12px; font-weight:bold; margin-bottom:10px;">AI 权重 Top 5</div>
+                    {% for n, v in top_numbers[:5] %}
+                    <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:5px;">
+                        <span>号码 {{n}}</span>
+                        <span style="color:var(--cyan)">{{v}}</span>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
-            <div class="card"><div style="font-size:12px; font-weight:bold; margin-bottom:10px; color:#94a3b8">命中率拟合曲线</div><div style="height:120px"><canvas id="chart"></canvas></div></div>
         </aside>
     </div>
 </div>
+
 <script>
-    function update() {
-        const now = new Date(); const bj = new Date(now.getTime() + (now.getTimezoneOffset() + 480) * 60000);
-        document.getElementById('clock').innerText = bj.toLocaleTimeString('zh-CN', {hour12: false});
-        let target = new Date(bj); target.setHours(20, 0, 0, 0); if (bj > target) target.setDate(target.getDate() + 1);
-        let diff = target - bj; let h = Math.floor(diff/3600000).toString().padStart(2,'0'), m = Math.floor((diff%3600000)/60000).toString().padStart(2,'0'), s = Math.floor((diff%60000)/1000).toString().padStart(2,'0');
-        document.getElementById('timer').innerText = `${h}:${m}:${s}`;
+    function updateClock() {
+        const now = new Date();
+        const bjTime = new Date(now.getTime() + (now.getTimezoneOffset() + 480) * 60000);
+        document.getElementById('clock').innerText = '北京时间: ' + bjTime.toLocaleTimeString();
     }
-    setInterval(update, 1000);
-    new Chart(document.getElementById('chart'), { type: 'line', data: { labels: {{chart_data.lab|tojson}}, datasets: [{ data: {{chart_data.val|tojson}}, borderColor: '#22d3ee', borderWidth: 2, pointRadius: 0, tension: 0.4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } } });
+    setInterval(updateClock, 1000);
 </script>
 </body>
 </html>
