@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, session
 import sqlite3, os, json, random, threading, time
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder="web")
 app.secret_key = "v37_secret"
 
 DB = "users.db"
