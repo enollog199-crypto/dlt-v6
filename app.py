@@ -1,5 +1,5 @@
 from flask import Flask, render_template
-import requests, re, random, sqlite3
+import requests, re, random, sqlite3, json, os
 import numpy as np
 import pandas as pd
 
@@ -9,165 +9,173 @@ app = Flask(__name__, template_folder="web")
 def init_db():
     conn = sqlite3.connect("ai.db")
     c = conn.cursor()
-
     c.execute('''CREATE TABLE IF NOT EXISTS predict
-                 (period TEXT, red TEXT, blue TEXT, hit TEXT, confidence REAL)''')
-
+                 (period TEXT PRIMARY KEY, red TEXT, blue TEXT, hit TEXT, confidence REAL, prob_data TEXT)''')
     conn.commit()
     conn.close()
 
-def save_predict(period, red, blue, confidence):
-    conn = sqlite3.connect("ai.db")
-    c = conn.cursor()
+# ===== AI 引擎（V63）=====
+def autonomous_engine(history, boost=1.0):
 
-    c.execute("SELECT * FROM predict WHERE period=?", (period,))
-    if c.fetchone():
-        conn.close()
-        return
-
-    c.execute("INSERT INTO predict VALUES (?,?,?,?,?)",
-              (period, str(red), str(blue), "/", confidence))
-
-    conn.commit()
-    conn.close()
-
-def load_predicts():
-    conn = sqlite3.connect("ai.db")
-    c = conn.cursor()
-    c.execute("SELECT * FROM predict ORDER BY period DESC")
-    rows = c.fetchall()
-    conn.close()
-
-    return [{"period":r[0],"red":r[1],"blue":r[2],"hit":r[3],"confidence":r[4]} for r in rows]
-
-# ===== 抓数据 =====
-def fetch_history():
-    try:
-        url="https://datachart.500.com/dlt/history/newinc/history.php"
-        html=requests.get(url,timeout=5).text
-        rows=re.findall(r'<tr class="t_tr1">(.*?)</tr>',html,re.S)
-
-        data=[]
-        for row in rows[:50]:
-            tds=re.findall(r'<td.*?>(.*?)</td>',row)
-            period=tds[0]
-
-            red=list(map(int,re.findall(r'\d{2}',"".join(tds[2:7]))))
-            blue=list(map(int,re.findall(r'\d{2}',"".join(tds[7:9]))))
-
-            if len(red)==5 and len(blue)==2:
-                data.append({"period":period,"red":red,"blue":blue})
-
-        return data
-    except:
-        return []
-
-# ===== 深度自回归模型 =====
-def deep_predict(history):
-
-    if len(history) < 10:
-        return sorted(random.sample(range(1,36),5)), sorted(random.sample(range(1,13),2)), 0.0, {}
+    if len(history) < 15:
+        return sorted(random.sample(range(1,36),5)), sorted(random.sample(range(1,13),2)), 50.0, {}, "数据不足"
 
     df = pd.DataFrame(0, index=range(len(history)), columns=range(1,36))
-    for i,h in enumerate(history):
+    for i, h in enumerate(history):
         df.loc[i, h['red']] = 1
 
     data = df.values[::-1]
 
-    weights = np.linspace(0.5,1.5,len(data))
-    prob = np.dot(weights, data)
+    # 趋势权重（加入学习因子）
+    trend_weights = np.exp(np.linspace(-1, 0.5, len(data))) * boost
 
-    prob = np.maximum(prob,0)
-    prob += np.random.normal(0,0.1,35)
+    # 遗漏补偿
+    gap_bonus = np.zeros(35)
+    for col in range(35):
+        idx = np.where(data[:, col] == 1)[0]
+        if len(idx) > 0:
+            gap_bonus[col] = (len(data) - idx[-1]) * 0.12
+        else:
+            gap_bonus[col] = len(data) * 0.15
 
-    # ===== 置信度 =====
-    confidence = float(np.std(prob) / (np.mean(prob)+1e-6))
-    confidence = round(min(confidence*100,100),2)
+    prob = np.dot(trend_weights, data) + gap_bonus
+    prob = np.maximum(prob, 0) + np.random.normal(0, 0.1, 35)
 
-    # ===== 概率映射 =====
-    prob_dict = {i+1: float(prob[i]) for i in range(35)}
+    # ===== 新置信度（真实）=====
+    confidence = round((len([p for p in prob if p > np.mean(prob)]) / 35) * 100, 2)
+
+    # ===== AI解释 =====
+    if np.mean(gap_bonus) > 2:
+        explain = "冷号补偿增强期"
+    elif confidence > 60:
+        explain = "热点集中期"
+    else:
+        explain = "常规波动期"
 
     red = np.argsort(prob)[-5:] + 1
 
-    # ===== 蓝球（同模型）=====
+    # ===== 蓝球增强（加入gap）=====
     blue_df = pd.DataFrame(0, index=range(len(history)), columns=range(1,13))
     for i,h in enumerate(history):
         blue_df.loc[i, h['blue']] = 1
 
-    blue_prob = np.dot(weights, blue_df.values[::-1])
+    blue_data = blue_df.values[::-1]
+
+    blue_gap = np.zeros(12)
+    for col in range(12):
+        idx = np.where(blue_data[:, col] == 1)[0]
+        if len(idx) > 0:
+            blue_gap[col] = (len(blue_data) - idx[-1]) * 0.1
+        else:
+            blue_gap[col] = len(blue_data) * 0.12
+
+    blue_prob = np.dot(trend_weights, blue_data) + blue_gap
     blue = np.argsort(blue_prob)[-2:] + 1
 
-    return sorted(red.tolist()), sorted(blue.tolist()), confidence, prob_dict
+    prob_dict = {str(i+1): round(float(prob[i]),2) for i in range(35)}
 
-# ===== 命中计算 =====
-def update_hit(history):
-    conn = sqlite3.connect("ai.db")
-    c = conn.cursor()
+    return sorted(red.tolist()), sorted(blue.tolist()), confidence, prob_dict, explain
 
-    for h in history:
-        period = h["period"]
-        real_red = set(h["red"])
-        real_blue = set(h["blue"])
 
-        c.execute("SELECT rowid, red, blue, hit FROM predict WHERE period=?", (period,))
-        rows = c.fetchall()
+# ===== 同步系统（含自学习）=====
+def sync_system():
+    try:
+        res = requests.get("https://datachart.500.com/dlt/history/newinc/history.php", timeout=8)
+        res.encoding = 'utf-8'
+        rows = re.findall(r'<tr class="t_tr1">(.*?)</tr>', res.text, re.S)
 
-        for r in rows:
-            rid, red, blue, hit = r
+        history = []
+        for row in rows[:30]:
+            tds = re.findall(r'<td.*?>(.*?)</td>', row)
+            history.append({
+                "period": tds[0],
+                "red": list(map(int, tds[2:7])),
+                "blue": list(map(int, tds[7:9]))
+            })
 
-            if hit != "/":
-                continue
-
-            red = set(eval(red))
-            blue = set(eval(blue))
-
-            hcount = len(red & real_red) + len(blue & real_blue)
-
-            c.execute("UPDATE predict SET hit=? WHERE rowid=?", (hcount, rid))
-
-    conn.commit()
-    conn.close()
-
-# ===== 首页 =====
-@app.route("/")
-def home():
-
-    init_db()
-
-    history = fetch_history()
-    latest = history[0] if history else None
-
-    prob_dict = {}
-
-    if latest:
         conn = sqlite3.connect("ai.db")
         c = conn.cursor()
-        c.execute("SELECT COUNT(*) FROM predict WHERE period=?", (latest["period"],))
-        exists = c.fetchone()[0]
+
+        boost = 1.0
+
+        # ===== 命中反馈（学习核心）=====
+        for h in history:
+            pred = c.execute("SELECT red, blue, hit FROM predict WHERE period=?", (h['period'],)).fetchone()
+            if pred and pred[2] == "/":
+                real_red, real_blue = set(h['red']), set(h['blue'])
+                p_red, p_blue = set(json.loads(pred[0])), set(json.loads(pred[1]))
+
+                hit_r = len(p_red & real_red)
+                hit_b = len(p_blue & real_blue)
+
+                hit_info = f"{hit_r}+{hit_b}"
+                c.execute("UPDATE predict SET hit=? WHERE period=?", (hit_info, h['period']))
+
+                # ===== 强化学习 =====
+                score = hit_r + hit_b
+                if score >= 3:
+                    boost *= 1.05
+                else:
+                    boost *= 0.97
+
+        # ===== 生成下一期 =====
+        next_p = str(int(history[0]['period']) + 1)
+
+        if not c.execute("SELECT 1 FROM predict WHERE period=?", (next_p,)).fetchone():
+            r,b,conf,pdict,exp = autonomous_engine(history, boost)
+            c.execute("INSERT INTO predict VALUES (?,?,?,?,?,?)",
+                      (next_p, json.dumps(r), json.dumps(b), "/", conf, json.dumps({"prob":pdict,"exp":exp})))
+
+        conn.commit()
         conn.close()
 
-        if exists == 0:
-            red, blue, conf, prob_dict = deep_predict(history)
-            save_predict(latest["period"], red, blue, conf)
-        else:
-            # 如果已预测，重新计算概率展示（不影响历史）
-            red, blue, conf, prob_dict = deep_predict(history)
+        return history[0], history
 
-    update_hit(history)
+    except Exception as e:
+        print("ERROR:", e)
+        return None, []
 
-    records = load_predicts()
 
-    # Top权重
-    top_numbers = sorted(prob_dict.items(), key=lambda x:x[1], reverse=True)[:10]
+# ===== 页面 =====
+@app.route("/")
+def index():
+    init_db()
+    latest, history = sync_system()
+
+    conn = sqlite3.connect("ai.db")
+    rows = conn.execute("SELECT * FROM predict ORDER BY period DESC LIMIT 15").fetchall()
+    conn.close()
+
+    records = []
+    chart_labels, chart_values = [], []
+
+    for r in rows:
+        pdata = json.loads(r[5]) if r[5] else {}
+        item = {
+            "period": r[0],
+            "red": json.loads(r[1]),
+            "blue": json.loads(r[2]),
+            "hit": r[3],
+            "conf": r[4],
+            "exp": pdata.get("exp","")
+        }
+        records.append(item)
+
+        if r[3] != "/":
+            chart_labels.append(r[0])
+            chart_values.append(sum(map(int, r[3].split('+'))))
+
+    prob_data = json.loads(rows[0][5])["prob"] if rows else {}
+    top_numbers = sorted(prob_data.items(), key=lambda x:x[1], reverse=True)[:10]
 
     return render_template("index.html",
         latest=latest,
         records=records,
         top_numbers=top_numbers,
-        confidence=conf if latest else 0
+        chart_data={"labels": chart_labels[::-1], "values": chart_values[::-1]}
     )
 
-# ===== 启动 =====
-import os
-port=int(os.environ.get("PORT",10000))
-app.run(host="0.0.0.0",port=port)
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT",10000))
+    app.run(host="0.0.0.0", port=port)
