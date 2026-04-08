@@ -9,25 +9,14 @@ body{background:#020617;color:#fff;font-family:Arial;text-align:center;}
 .green{color:#22c55e;}
 .gray{color:#94a3b8;}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
 
-<h1>🎯 大乐透 V54 AI商业版</h1>
-
-<form method="post">
-<select name="mode">
-  <option value="stable">稳健</option>
-  <option value="aggressive">激进</option>
-  <option value="cold">冷号</option>
-</select>
-<button type="submit">生成预测</button>
-</form>
+<h1>🎯 大乐透 V55 稳定商业版</h1>
 
 <div class="card">
 <h3>📊 最新开奖</h3>
-<p>期号：{{latest.period}}</p>
 
 {% for n in latest.red %}
 <span class="ball red">{{n}}</span>
@@ -36,38 +25,27 @@ body{background:#020617;color:#fff;font-family:Arial;text-align:center;}
 {% for n in latest.blue %}
 <span class="ball blue">{{n}}</span>
 {% endfor %}
+
 </div>
 
 <div class="card">
-<h3>🤖 AI预测（多模型）</h3>
+<h3>🤖 AI预测</h3>
 
 {% for p in preds %}
 
-<p>🎯 胆码：
-{% for n in p.dan %}
-<span class="ball red">{{n}}</span>
-{% endfor %}
-</p>
-
-<p>❌ 杀号：
-<span class="gray">
-{% for n in p.kill %}
-{{n}} 
-{% endfor %}
-</span>
-</p>
-
 <p>
+🎯 红球：
 {% for n in p.red %}
 <span class="ball red">{{n}}</span>
 {% endfor %}
 <br>
+🔵 蓝球：
 {% for n in p.blue %}
 <span class="ball blue">{{n}}</span>
 {% endfor %}
+<br>
+<span class="green">命中：{{p.hit}}</span>
 </p>
-
-<p class="green">命中：{{p.hit}}</p>
 
 <hr>
 
@@ -76,7 +54,7 @@ body{background:#020617;color:#fff;font-family:Arial;text-align:center;}
 </div>
 
 <div class="card">
-<h3>📈 最近预测记录</h3>
+<h3>📈 历史记录</h3>
 
 <table border="1" style="width:100%;color:white;">
 <tr><th>红球</th><th>蓝球</th><th>命中</th></tr>
@@ -94,10 +72,11 @@ body{background:#020617;color:#fff;font-family:Arial;text-align:center;}
 </div>
 
 <div class="card">
-<h3>📊 AI命中趋势</h3>
+<h3>📊 命中趋势</h3>
 <canvas id="chart"></canvas>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 new Chart(document.getElementById('chart'), {
     type: 'line',
