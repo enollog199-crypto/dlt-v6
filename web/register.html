@@ -1,65 +1,18 @@
 <!DOCTYPE html>
-<html lang="zh">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>申请权限 - Dextro AI</title>
-    <style>
-        body { 
-            background: #020617; 
-            color: white; 
-            font-family: 'Segoe UI', system-ui; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            height: 100vh; 
-            margin: 0; 
-        }
-        .card { 
-            background: #0f172a; 
-            padding: 40px; 
-            border-radius: 20px; 
-            border: 1px solid #1e293b; 
-            width: 320px; 
-            box-shadow: 0 20px 25px rgba(0,0,0,0.5); 
-        }
-        h2 { color: #f43f5e; text-align: center; margin-bottom: 25px; letter-spacing: 1px; }
-        input { 
-            width: 100%; 
-            padding: 12px; 
-            margin: 10px 0; 
-            background: #1e293b; 
-            border: 1px solid #334155; 
-            border-radius: 8px; 
-            color: white; 
-            box-sizing: border-box; 
-        }
-        input:focus { border-color: #f43f5e; outline: none; }
-        button { 
-            width: 100%; 
-            padding: 12px; 
-            margin-top: 20px; 
-            background: #f43f5e; 
-            border: none; 
-            border-radius: 8px; 
-            font-weight: bold; 
-            color: white;
-            cursor: pointer; 
-        }
-        button:hover { background: #e11d48; }
-        .link { text-align: center; margin-top: 20px; font-size: 13px; color: #64748b; }
-        a { color: #f43f5e; text-decoration: none; font-weight: bold; }
-    </style>
-</head>
+<html>
+<head><meta charset="UTF-8"><title>注册 - Dextro AI</title>
+<style>
+    body { background: #020617; color: white; font-family: system-ui; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+    .card { background: #0f172a; padding: 40px; border-radius: 20px; border: 1px solid #1e293b; width: 300px; box-shadow: 0 20px 25px rgba(0,0,0,0.5); }
+    h2 { color: #f43f5e; text-align: center; margin-bottom: 25px; }
+    input { width: 100%; padding: 12px; margin: 10px 0; background: #1e293b; border: 1px solid #334155; border-radius: 8px; color: white; box-sizing: border-box; }
+    button { width: 100%; padding: 12px; margin-top: 15px; background: #f43f5e; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; }
+</style></head>
 <body>
     <div class="card">
-        <h2>CREATE ACCOUNT</h2>
-        <form method="post">
-            <input name="username" placeholder="设置用户名" required>
-            <input name="password" type="password" placeholder="设置密码" required>
-            <button type="submit">立即创建并激活</button>
-        </form>
-        <div class="link">已有账号？<a href="/login">直接登录</a></div>
+        <h2>创建管理员账号</h2>
+        <form method="post"><input name="username" placeholder="设置用户名" required><input name="password" type="password" placeholder="设置密码" required><button>立即激活系统</button></form>
+        <p style="text-align:center; font-size:12px; margin-top:15px;"><a href="/login" style="color:#f43f5e; text-decoration:none;">返回登录</a></p>
     </div>
 </body>
 </html>
