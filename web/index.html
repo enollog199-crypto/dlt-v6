@@ -1,104 +1,70 @@
-<!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8"><title>Dextro AI V11 - 自主进化系统</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        :root { --bg: #030712; --panel: #111827; --cyan: #22d3ee; --rose: #f43f5e; }
-        body { background: var(--bg); color: #f3f4f6; font-family: 'Inter', sans-serif; margin: 0; }
-        .dashboard { display: grid; grid-template-columns: 300px 1fr 300px; gap: 20px; padding: 20px; height: 100vh; box-sizing: border-box; }
-        .panel { background: var(--panel); border-radius: 20px; border: 1px solid #1f2937; padding: 20px; overflow-y: auto; }
-        .ball { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; margin: 2px; font-weight: bold; font-size: 13px; }
-        .red-ball { background: rgba(244, 63, 94, 0.1); color: var(--rose); border: 1px solid var(--rose); }
-        .blue-ball { background: rgba(34, 211, 238, 0.1); color: var(--cyan); border: 1px solid var(--cyan); }
-        .stat-card { background: #1f2937; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
-        .confidence-ring { width: 80px; height: 80px; border-radius: 50%; border: 4px solid var(--cyan); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 900; box-shadow: 0 0 15px var(--cyan); }
-        .history-table { width: 100%; border-spacing: 0 8px; border-collapse: separate; }
-        .history-table td { padding: 12px; background: #111827; }
-        .history-table tr:first-child td { border-top: 1px solid var(--cyan); }
-    </style>
+<style>
+body{background:#020617;color:#fff;font-family:Arial;text-align:center;}
+.card{background:#1e293b;margin:20px;padding:20px;border-radius:12px;}
+.ball{display:inline-block;margin:4px;padding:8px;border-radius:50%;}
+.red{background:#ef4444;}
+.blue{background:#3b82f6;}
+.green{color:#22c55e;}
+.gray{color:#94a3b8;}
+</style>
 </head>
+
 <body>
-    <div class="dashboard">
-        <div class="panel">
-            <h2 style="color:var(--cyan)">SYSTEM</h2>
-            <div class="stat-card">
-                <small style="color:#9ca3af">自主预测模型</small>
-                <div style="font-size:1.1rem; font-weight:bold; margin-top:5px;">Evolutionary V11</div>
-            </div>
-            <div class="stat-card">
-                <small style="color:#9ca3af">账户可用金</small>
-                <div style="font-size:1.8rem; font-weight:bold; color:var(--cyan)">🪙 {{ "%.0f"|format(credits) }}</div>
-            </div>
-            <div class="stat-card" style="display:flex; justify-content:center; padding:30px 0;">
-                <div class="confidence-ring">{{ records[0].conf }}%</div>
-            </div>
-            <p style="font-size:11px; color:#6b7280; line-height:1.6;">系统正基于过去 20 期历史数据进行自主卷积运算。置信度根据模型收敛情况动态生成。</p>
-        </div>
 
-        <div class="panel">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h1 style="margin:0">决策中心</h1>
-                <span style="background:var(--rose); padding:4px 12px; border-radius:20px; font-size:12px; font-weight:bold;">第 {{ records[0].p }} 期预测</span>
-            </div>
-            
-            <div style="margin: 40px 0; text-align:center;">
-                <div style="margin-bottom:20px;">
-                    {% for n in records[0].r %}<span class="ball red-ball">{{ "%02d"|format(n) }}</span>{% endfor %}
-                    <span style="color:#374151; margin:0 15px; font-size:24px;">|</span>
-                    {% for n in records[0].b %}<span class="ball blue-ball">{{ "%02d"|format(n) }}</span>{% endfor %}
-                </div>
-                <div style="color:#6b7280; font-size:13px;">自主分析建议：本期概率偏向历史高遗漏区间，建议小量测试。</div>
-            </div>
+<h1>🎯 大乐透 V60 AI系统</h1>
 
-            <h3 style="border-left:4px solid var(--cyan); padding-left:10px; margin-top:50px;">历史分析回溯</h3>
-            <table class="history-table">
-                {% for r in records[1:] %}
-                <tr>
-                    <td><b>{{ r.p }}</b><br><small style="color:#6b7280">{{ r.d }}</small></td>
-                    <td>
-                        {% for n in r.r %}<span class="ball red-ball" style="width:22px;height:22px;font-size:9px;">{{n}}</span>{% endfor %}
-                        <span style="color:#374151">|</span>
-                        {% for n in r.b %}<span class="ball blue-ball" style="width:22px;height:22px;font-size:9px;">{{n}}</span>{% endfor %}
-                    </td>
-                    <td style="color:var(--cyan); font-weight:bold;">{{ r.hr }}+{{ r.hb }}</td>
-                    <td style="text-align:right;"><span style="color:{% if r.win > 0 %}#10b981{% else %}#6b7280{% endif %}">¥{{ r.win }}</span></td>
-                </tr>
-                {% endfor %}
-            </table>
-        </div>
+{% if latest %}
+<div class="card">
+<h3>📊 最新开奖（{{latest.period}}）</h3>
 
-        <div class="panel">
-            <h3 style="margin-top:0">命中率趋势</h3>
-            <canvas id="evolveChart" height="200"></canvas>
-            
-            <h3 style="margin-top:40px">财富榜</h3>
-            {% for top in top_users %}
-            <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:14px; background:#1f2937; padding:10px; border-radius:8px;">
-                <span>{{ loop.index }}. {{ top[0] }}</span>
-                <span style="color:var(--cyan)">🪙 {{ "%.0f"|format(top[1]) }}</span>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
+{% for n in latest.red %}
+<span class="ball red">{{n}}</span>
+{% endfor %}
+<br>
+{% for n in latest.blue %}
+<span class="ball blue">{{n}}</span>
+{% endfor %}
+</div>
+{% endif %}
 
-    <script>
-        const ctx = document.getElementById('evolveChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: {{ [r[0] for r in records if r[4]!=-1][::-1]|tojson }},
-                datasets: [{
-                    label: '命中数',
-                    data: {{ [r[4]+r[5] for r in records if r[4]!=-1][::-1]|tojson }},
-                    borderColor: '#22d3ee',
-                    backgroundColor: 'rgba(34, 211, 238, 0.1)',
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: { plugins: { legend: { display: false } }, scales: { y: { min:0, max:7, grid: { color: '#374151' } } } }
-        });
-    </script>
+<div class="card">
+<h3>🧠 模型置信度：{{confidence}}%</h3>
+</div>
+
+<div class="card">
+<h3>🔥 AI关注号码 Top10</h3>
+
+{% for n,v in top_numbers %}
+<span class="ball red">{{n}}</span> {{ "%.2f"|format(v) }}<br>
+{% endfor %}
+
+</div>
+
+<div class="card">
+<h3>📈 历史预测记录</h3>
+
+<table border="1" style="width:100%;color:white;">
+<tr><th>期号</th><th>预测</th><th>命中</th></tr>
+
+{% for r in records %}
+<tr>
+<td>{{r.period}}</td>
+<td>{{r.red}} | {{r.blue}}</td>
+<td class="green">
+{% if r.hit == "/" %}
+<span class="gray">/</span>
+{% else %}
+{{r.hit}}
+{% endif %}
+</td>
+</tr>
+{% endfor %}
+
+</table>
+
+</div>
+
 </body>
 </html>
