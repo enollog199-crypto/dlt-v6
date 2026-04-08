@@ -3,175 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DEXTRO AI - 大乐透智慧预测系统</title>
+    <title>DEXTRO AI | 智慧决策终端</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { 
-            --bg: #0b0f1a; --card: rgba(30, 41, 59, 0.7); 
-            --cyan: #22d3ee; --pink: #f43f5e; --yellow: #facc15; 
-            --border: rgba(255, 255, 255, 0.1); 
-        }
-        body { 
-            background: radial-gradient(circle at top, #1e293b 0%, #0b0f1a 100%); 
-            color: #e2e8f0; font-family: 'Inter', system-ui, -apple-system, sans-serif; 
-            margin: 0; padding: 15px; min-height: 100vh;
-        }
-        .container { max-width: 1440px; margin: 0 auto; }
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 10px 0; }
-        .logo { font-size: 24px; font-weight: 800; letter-spacing: -1px; background: linear-gradient(to right, var(--cyan), var(--pink)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .nav-links a { color: #94a3b8; text-decoration: none; font-size: 14px; margin-left: 20px; transition: 0.3s; padding: 5px 12px; border-radius: 8px; }
-        .nav-links a:hover { background: rgba(255,255,255,0.05); color: var(--cyan); }
-        .dashboard { display: grid; grid-template-columns: 1fr 320px; gap: 20px; }
-        .card { 
-            background: var(--card); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-            border: 1px solid var(--border); border-radius: 20px; 
-            padding: 24px; box-shadow: 0 15px 35px rgba(0,0,0,0.4);
-        }
-        .predict-box { text-align: center; padding: 20px 0; }
-        .ball-l { 
-            display: inline-flex; align-items: center; justify-content: center; 
-            width: 46px; height: 46px; border-radius: 12px; margin: 5px; 
-            font-weight: 800; font-size: 20px; border: 2px solid transparent;
-        }
-        .red-l { background: rgba(244,63,94,0.1); color: var(--pink); border-color: rgba(244,63,94,0.3); }
-        .blue-l { background: rgba(34,211,238,0.1); color: var(--cyan); border-color: rgba(34,211,238,0.3); }
-        .zs-wrapper { overflow-x: auto; margin-top: 15px; border-radius: 12px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.5); }
-        .zs-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: center; table-layout: fixed; }
-        .zs-table th { background: #1e293b; padding: 12px 5px; color: #94a3b8; border: 1px solid var(--border); }
-        .zs-table td { padding: 8px 2px; border: 1px solid var(--border); color: #475569; }
-        .ball-s { width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 11px; font-weight: bold; }
-        .hit-red { background: linear-gradient(135deg, #f43f5e, #be123c); color: white; }
-        .hit-blue { background: linear-gradient(135deg, #22d3ee, #0891b2); color: #020617; }
-        .rank-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 12px; }
-        .progress-bar { flex: 1; margin: 0 15px; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; position: relative; overflow: hidden; }
-        .progress-fill { position: absolute; left: 0; top: 0; height: 100%; background: var(--cyan); }
-        @media (max-width: 1024px) { .dashboard { grid-template-columns: 1fr; } }
+        :root { --bg: #030712; --card: rgba(17, 24, 39, 0.8); --cyan: #22d3ee; --pink: #f43f5e; --border: rgba(255, 255, 255, 0.08); }
+        body { background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, var(--bg) 70%); color: #f1f5f9; font-family: 'Inter', system-ui, sans-serif; margin: 0; padding: 15px; }
+        .container { max-width: 1300px; margin: 0 auto; }
+        header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
+        .logo-area h1 { font-size: 22px; font-weight: 900; margin: 0; background: linear-gradient(to right, #fff, var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .status-pill { font-size: 10px; background: rgba(34, 211, 238, 0.1); color: var(--cyan); padding: 3px 10px; border-radius: 20px; border: 1px solid rgba(34,211,238,0.2); }
+        .grid { display: grid; grid-template-columns: 1fr 320px; gap: 20px; }
+        .card { background: var(--card); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 20px; padding: 20px; margin-bottom: 20px; }
+        .predict-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .engine-label { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+        .engine-label::before { content: ""; width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+        .core-l::before { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+        .anti-l::before { background: var(--pink); box-shadow: 0 0 8px var(--pink); }
+        .ball-group { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 15px 0; }
+        .ball { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; transition: 0.3s; }
+        .b-core-r { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: #fff; }
+        .b-core-b { background: rgba(34, 211, 238, 0.05); border: 1px solid rgba(34,211,238,0.2); color: var(--cyan); }
+        .b-anti-r { background: linear-gradient(135deg, #f43f5e, #9f1239); color: #fff; box-shadow: 0 6px 15px rgba(244,63,94,0.3); }
+        .b-anti-b { background: linear-gradient(135deg, #06b6d4, #0891b2); color: #fff; box-shadow: 0 6px 15px rgba(6,182,212,0.3); }
+        .matrix-table { width: 100%; border-collapse: collapse; font-size: 10px; text-align: center; }
+        .matrix-table th { color: #475569; padding: 8px 2px; }
+        .matrix-table td { padding: 5px 1px; border: 1px solid rgba(255,255,255,0.02); }
+        .dot { width: 16px; height: 16px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; }
+        .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+        .bar-bg { flex: 1; height: 5px; background: rgba(255,255,255,0.05); border-radius: 3px; }
+        .bar-fill { height: 100%; background: var(--cyan); border-radius: 3px; }
+        #clock { font-size: 16px; font-weight: 700; color: #fff; }
+        .countdown { color: #f59e0b; font-family: monospace; font-size: 12px; font-weight: bold; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } .predict-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
-
 <div class="container">
     <header>
-        <div class="logo">DEXTRO AI SYSTEM</div>
-        <div class="nav-links">
-            <a href="/rank">🏆 胜率榜</a>
-            {% if logged_in %}
-                <a href="/logout" style="border: 1px solid var(--pink); color:var(--pink)">退出管理</a>
-            {% else %}
-                <a href="/login">管理入口</a>
-            {% endif %}
+        <div class="logo-area">
+            <h1>DEXTRO NEURAL</h1>
+            <div><span class="status-pill">AI 核心就绪</span><span class="status-pill" style="margin-left:5px; border-color:var(--pink); color:var(--pink)">博弈引擎同步</span></div>
+        </div>
+        <div style="text-align: right">
+            <div id="clock">00:00:00</div>
+            <div class="countdown">距离封盘: <span id="timer">--:--:--</span></div>
         </div>
     </header>
-
-    <div class="dashboard">
+    <div class="grid">
         <main>
-            {% if records and records|length > 0 %}
-            <div class="card" style="border-bottom: 4px solid var(--cyan);">
-                <div style="display:flex; justify-content:space-between;">
-                    <div>
-                        <span style="color:#94a3b8; font-size:14px;">PREDICTION FOR PERIOD</span>
-                        <strong style="font-size: 20px; display: block;">第 {{ records[0].period }} 期</strong>
-                    </div>
-                    <div style="text-align: right;">
-                        <span style="color:var(--cyan); font-weight:bold; font-size: 18px;">{{ records[0].conf }}%</span>
-                        <span style="color:#64748b; font-size:11px; display:block;">AI CONFIDENCE</span>
+            <div class="predict-grid">
+                <div class="card">
+                    <div class="engine-label core-l">Core Engine / 统计预测</div>
+                    <div style="font-size: 11px; color: #64748b;">第 {{ records[0].period }} 期 · 基于历史大数据趋势</div>
+                    <div class="ball-group">
+                        {% for n in core.red %}<div class="ball b-core-r">{{ "%02d"|format(n) }}</div>{% endfor %}
+                        {% for n in core.blue %}<div class="ball b-core-b">{{ "%02d"|format(n) }}</div>{% endfor %}
                     </div>
                 </div>
-                <div class="predict-box">
-                    {% for n in records[0].red %}<span class="ball-l red-l">{{ "%02d"|format(n) }}</span>{% endfor %}
-                    <span style="color:var(--border); margin:0 10px; font-size:28px;">/</span>
-                    {% for n in records[0].blue %}<span class="ball-l blue-l">{{ "%02d"|format(n) }}</span>{% endfor %}
-                </div>
-                <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 10px; font-size:13px; color:#94a3b8;">
-                    <span style="color:var(--cyan);">[AI 简报]:</span> {{ records[0].exp }}
+                <div class="card" style="border-color: rgba(244,63,94,0.3); background: rgba(244,63,94,0.02);">
+                    <div class="engine-label anti-l">Anti-Hot Engine / 实时避热</div>
+                    <div style="font-size: 11px; color: #64748b;">已剔除全网热门: <span style="color:var(--pink)">{{ crowd.red[:3]|join(',') }}...</span></div>
+                    <div class="ball-group">
+                        {% for n in anti.red %}<div class="ball b-anti-r">{{ "%02d"|format(n) }}</div>{% endfor %}
+                        {% for n in anti.blue %}<div class="ball b-anti-b">{{ "%02d"|format(n) }}</div>{% endfor %}
+                    </div>
                 </div>
             </div>
-
-            <div class="card" style="margin-top:20px;">
-                <div style="color:#94a3b8; font-size:14px; margin-bottom:15px;">📊 历史走势矩阵</div>
-                <div class="zs-wrapper">
-                    <table class="zs-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 70px;">期号</th>
-                                {% for i in range(1, 36) %}<th style="color:var(--pink); font-size:10px;">{{i}}</th>{% endfor %}
-                                {% for i in range(1, 13) %}<th style="color:var(--cyan); font-size:10px;">{{i}}</th>{% endfor %}
-                            </tr>
-                        </thead>
+            <div class="card">
+                <div style="font-size:12px; font-weight:bold; margin-bottom:15px; color:#94a3b8">趋势特征矩阵</div>
+                <div style="overflow-x: auto;">
+                    <table class="matrix-table">
+                        <thead><tr><th>期号</th>{% for i in range(1, 36) %}<th>{{i}}</th>{% endfor %}<th></th>{% for i in range(1, 13) %}<th>{{i}}</th>{% endfor %}</tr></thead>
                         <tbody>
-                            {% if records|length > 1 %}
-                                {% for r in records[1:11] %}
-                                <tr>
-                                    <td style="color:#64748b; background: rgba(0,0,0,0.1);">{{r.period}}</td>
-                                    {% for i in range(1, 36) %}
-                                        <td>{% if i in r.red %}<span class="ball-s hit-red">{{i}}</span>{% endif %}</td>
-                                    {% endfor %}
-                                    {% for i in range(1, 13) %}
-                                        <td>{% if i in r.blue %}<span class="ball-s hit-blue">{{i}}</span>{% endif %}</td>
-                                    {% endfor %}
-                                </tr>
-                                {% endfor %}
-                            {% else %}
-                                <tr><td colspan="48" style="padding:20px; color:#64748b;">历史记录加载中...</td></tr>
-                            {% endif %}
+                            {% for r in records[1:9] %}
+                            <tr><td style="color:#64748b">{{r.period}}</td>{% for i in range(1, 36) %}<td>{% if i in r.red %}<span class="dot" style="background:var(--pink); color:#fff">{{i}}</span>{% endif %}</td>{% endfor %}<td style="border-left:1px solid var(--border)"></td>{% for i in range(1, 13) %}<td>{% if i in r.blue %}<span class="dot" style="background:var(--cyan); color:#000">{{i}}</span>{% endif %}</td>{% endfor %}</tr>
+                            {% endfor %}
                         </tbody>
                     </table>
                 </div>
             </div>
-            {% else %}
-            <div class="card">系统初始化中，请稍后并刷新...</div>
-            {% endif %}
         </main>
-
         <aside>
             <div class="card">
-                <div style="color:#94a3b8; font-size:14px; margin-bottom:15px;">🔥 热度权值排名</div>
-                {% for n,v in top_numbers %}
-                <div class="rank-item">
-                    <span class="ball-s hit-red">{{n}}</span>
-                    <div class="progress-bar"><div class="progress-fill" style="width:{{v * 10}}%"></div></div>
-                    <span style="font-family:monospace; font-size:12px; color:var(--cyan);">{{v}}</span>
-                </div>
+                <div style="font-size:12px; font-weight:bold; margin-bottom:15px; color:#94a3b8">实时权值分布</div>
+                {% for n, v in top_numbers %}
+                <div class="bar-row"><span style="width:18px; font-size:11px;">{{n}}</span><div class="bar-bg"><div class="bar-fill" style="width:{{v*12}}%"></div></div><span style="font-size:10px; color:#475569">{{v}}</span></div>
                 {% endfor %}
             </div>
-
-            <div class="card" style="margin-top:20px;">
-                <div style="color:#94a3b8; font-size:14px; margin-bottom:15px;">📈 历史命中分值</div>
-                <div style="height: 180px;">
-                    <canvas id="sideChart"></canvas>
-                </div>
-            </div>
+            <div class="card"><div style="font-size:12px; font-weight:bold; margin-bottom:10px; color:#94a3b8">命中率拟合曲线</div><div style="height:120px"><canvas id="chart"></canvas></div></div>
         </aside>
     </div>
 </div>
-
 <script>
-    const ctx = document.getElementById('sideChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: {{ chart_data.lab_list | tojson if chart_data.lab_list else [] }},
-            datasets: [{
-                data: {{ chart_data.val_list | tojson if chart_data.val_list else [] }},
-                borderColor: '#22d3ee',
-                backgroundColor: 'rgba(34, 211, 238, 0.1)',
-                borderWidth: 3,
-                tension: 0.4,
-                fill: true,
-                pointRadius: 4,
-                pointBackgroundColor: '#22d3ee'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { display: false } },
-                y: { beginAtZero: true, ticks: { color: '#64748b', stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.05)' } }
-            }
-        }
-    });
+    function update() {
+        const now = new Date(); const bj = new Date(now.getTime() + (now.getTimezoneOffset() + 480) * 60000);
+        document.getElementById('clock').innerText = bj.toLocaleTimeString('zh-CN', {hour12: false});
+        let target = new Date(bj); target.setHours(20, 0, 0, 0); if (bj > target) target.setDate(target.getDate() + 1);
+        let diff = target - bj; let h = Math.floor(diff/3600000).toString().padStart(2,'0'), m = Math.floor((diff%3600000)/60000).toString().padStart(2,'0'), s = Math.floor((diff%60000)/1000).toString().padStart(2,'0');
+        document.getElementById('timer').innerText = `${h}:${m}:${s}`;
+    }
+    setInterval(update, 1000);
+    new Chart(document.getElementById('chart'), { type: 'line', data: { labels: {{chart_data.lab|tojson}}, datasets: [{ data: {{chart_data.val|tojson}}, borderColor: '#22d3ee', borderWidth: 2, pointRadius: 0, tension: 0.4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } } });
 </script>
 </body>
 </html>
