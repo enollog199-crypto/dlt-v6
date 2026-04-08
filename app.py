@@ -1,27 +1,53 @@
-from flask import Flask, render_template
-import requests, re, json, os, random
+from flask import Flask, render_template, request, redirect, session
+import sqlite3, requests, re, json, os, random
 from collections import Counter
 from datetime import datetime
 
 app = Flask(__name__, template_folder="web")
-app.secret_key = "v46_ai"
+app.secret_key = "v46_fix"
 
+DB="data.db"
 PREDICT_FILE="predict.json"
-STATS_FILE="stats.json"
 
-# ===== 获取历史 =====
+# ===== 数据库 =====
+def get_db():
+    conn=sqlite3.connect(DB)
+    c=conn.cursor()
+
+    c.execute("""CREATE TABLE IF NOT EXISTS users(
+        id INTEGER PRIMARY KEY,
+        username TEXT,
+        password TEXT
+    )""")
+
+    conn.commit()
+    return conn
+
+# ===== 获取开奖（带期号日期）=====
 def fetch_history():
     try:
         url="https://datachart.500.com/dlt/history/newinc/history.php"
         html=requests.get(url,timeout=5).text
+
         rows=re.findall(r'<tr class="t_tr1">(.*?)</tr>',html,re.S)
 
         history=[]
-        for row in rows[:100]:
-            nums=re.findall(r'\d{2}',row)
-            red=list(map(int,nums[2:7]))
-            blue=list(map(int,nums[7:9]))
-            history.append({"red":red,"blue":blue})
+        for row in rows[:50]:
+            tds=re.findall(r'<td.*?>(.*?)</td>',row)
+
+            period=tds[0]
+            date=tds[1]
+
+            nums=re.findall(r'\d{2}', "".join(tds[2:9]))
+            red=list(map(int,nums[:5]))
+            blue=list(map(int,nums[5:7]))
+
+            history.append({
+                "period":period,
+                "date":date,
+                "red":red,
+                "blue":blue
+            })
 
         return history
     except:
@@ -48,110 +74,108 @@ def blue_model(history):
     for h in history: c.update(h["blue"])
     return [n for n,_ in c.most_common()]
 
-# ===== 生成一注 =====
-def gen_one(history):
-    h=hot(history)[:10]
-    c=cold(history)[:10]
+# ===== 生成预测（带策略标签）=====
+def gen_one(history, mode):
+    h=hot(history)
+    c=cold(history)
 
-    dan=random.sample(h,2)
-    pool=list(set(h+c))
-    res=set(dan)
+    if mode=="稳健型":
+        pool=h[:12]
+    elif mode=="进攻型":
+        pool=c[:12]
+    else:
+        pool=h[:6]+c[:6]
 
-    while len(res)<5:
-        res.add(random.choice(pool))
-
+    red=sorted(random.sample(pool,5))
     blue=sorted(random.sample(blue_model(history)[:6],2))
 
-    return {"red":sorted(res),"blue":blue,"dan":dan}
+    return {
+        "red":red,
+        "blue":blue,
+        "mode":mode
+    }
 
-# ===== 多注 =====
 def gen_multi(history):
-    result=[]
-    while len(result)<3:
-        p=gen_one(history)
-        if all(len(set(p["red"]) & set(r["red"]))<3 for r in result):
-            result.append(p)
-    return result
+    return [
+        gen_one(history,"稳健型"),
+        gen_one(history,"进攻型"),
+        gen_one(history,"均衡型")
+    ]
 
 # ===== 命中 =====
 def hit(p,r):
     return len(set(p["red"])&set(r["red"])) + \
            len(set(p["blue"])&set(r["blue"]))
 
-# ===== 投注策略 =====
-def bet_strategy(last_hit):
-    if last_hit >=3:
-        return 1
-    elif last_hit==2:
-        return 2
-    else:
-        return 3
-
-# ===== 统计 =====
-def load_stats():
-    if os.path.exists(STATS_FILE):
-        return json.load(open(STATS_FILE))
-    return {"cost":0,"win":0,"round":0,"last_hit":0}
-
-def save_stats(s):
-    json.dump(s,open(STATS_FILE,"w"))
-
-# ===== 锁定预测 =====
-def get_prediction(history):
-    today=str(datetime.now().date())
-
-    if os.path.exists(PREDICT_FILE):
-        data=json.load(open(PREDICT_FILE))
-        if data["date"]==today:
-            return data
-
-    preds=gen_multi(history)
-
-    data={"date":today,"preds":preds}
-    json.dump(data,open(PREDICT_FILE,"w"))
-    return data
-
 # ===== 首页 =====
 @app.route("/")
 def home():
     history=fetch_history()
-    latest=history[0] if history else {"red":[],"blue":[]}
+    latest=history[0] if history else {}
 
-    pred_data=get_prediction(history)
-    stats=load_stats()
+    preds=gen_multi(history)
 
-    preds=[]
-    total_hit=0
-
-    for p in pred_data["preds"]:
-        h=hit(p,latest)
-        total_hit+=h
-        preds.append({
-            "red":p["red"],
-            "blue":p["blue"],
-            "dan":p["dan"],
-            "hit":h
-        })
-
-    # ===== 更新统计 =====
-    bet=bet_strategy(stats["last_hit"])
-
-    stats["round"]+=1
-    stats["cost"]+=bet*6  # 每注2元，3注=6元
-    stats["win"]+=total_hit*2  # 简化收益模型
-    stats["last_hit"]=total_hit
-
-    save_stats(stats)
-
-    roi = round((stats["win"]-stats["cost"])/stats["cost"],2) if stats["cost"]>0 else 0
+    for p in preds:
+        p["hit"]=hit(p,latest) if latest else 0
 
     return render_template("index.html",
         latest=latest,
         preds=preds,
-        bet=bet,
-        stats=stats,
-        roi=roi
+        user=session.get("username")
     )
+
+# ===== 注册 =====
+@app.route("/register",methods=["GET","POST"])
+def register():
+    if request.method=="POST":
+        u=request.form["username"]
+        p=request.form["password"]
+
+        conn=get_db()
+        c=conn.cursor()
+        c.execute("INSERT INTO users(username,password) VALUES (?,?)",(u,p))
+        conn.commit()
+        return redirect("/login")
+
+    return '''
+    <h2>注册</h2>
+    <form method=post>
+    用户:<input name=username><br>
+    密码:<input name=password type=password><br>
+    <button>注册</button>
+    </form>
+    '''
+
+# ===== 登录 =====
+@app.route("/login",methods=["GET","POST"])
+def login():
+    if request.method=="POST":
+        u=request.form["username"]
+        p=request.form["password"]
+
+        conn=get_db()
+        c=conn.cursor()
+        c.execute("SELECT * FROM users WHERE username=? AND password=?",(u,p))
+        user=c.fetchone()
+
+        if user:
+            session["username"]=u
+            return redirect("/")
+
+    return '''
+    <h2>登录</h2>
+    <form method=post>
+    用户:<input name=username><br>
+    密码:<input name=password type=password><br>
+    <button>登录</button>
+    </form>
+    '''
+
+# ===== 退出 =====
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/")
 
 # ===== 启动 =====
 import os
