@@ -1,21 +1,23 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html>
 <head>
     <meta charset="UTF-8">
-    <title>DEXTRO AI - 神经决策系统</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DEXTRO AI V63 - 控制面板</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --bg: #030712; --card: #0f172a; --cyan: #22d3ee; --pink: #f43f5e; }
-        body { background: var(--bg); color: white; font-family: 'Segoe UI', system-ui; margin: 0; padding: 20px; }
+        :root { --bg: #020617; --card: #0f172a; --cyan: #22d3ee; --pink: #f43f5e; }
+        body { background: var(--bg); color: white; font-family: system-ui; margin: 0; padding: 20px; }
         .grid { display: grid; grid-template-columns: 1fr 340px; gap: 20px; max-width: 1200px; margin: auto; }
-        .card { background: var(--card); border: 1px solid #1e293b; border-radius: 16px; padding: 20px; margin-bottom: 20px; }
-        .ball { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; margin: 3px; font-weight: bold; border: 1px solid #334155; }
-        .red-ball { color: var(--pink); border-color: var(--pink); box-shadow: 0 0 10px rgba(244,63,94,0.2); }
-        .blue-ball { color: var(--cyan); border-color: var(--cyan); box-shadow: 0 0 10px rgba(34,211,238,0.2); }
-        .badge { background: #1e293b; padding: 4px 12px; border-radius: 20px; font-size: 12px; color: var(--cyan); border: 1px solid var(--cyan); }
+        .card { background: var(--card); border: 1px solid #1e293b; border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.4); }
+        .ball { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; margin: 3px; font-weight: bold; font-size: 14px; }
+        .red-ball { color: var(--pink); border: 1px solid var(--pink); background: rgba(244,63,94,0.05); }
+        .blue-ball { color: var(--cyan); border: 1px solid var(--cyan); background: rgba(34,211,238,0.05); }
+        .badge { background: #1e293b; color: var(--cyan); border: 1px solid var(--cyan); padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
         table { width: 100%; border-collapse: collapse; }
         td { padding: 12px 8px; border-bottom: 1px solid #1e293b; font-size: 13px; }
-        .hit { color: #10b981; font-weight: bold; }
+        .hit { color: #10b981; font-weight: bold; background: rgba(16,185,129,0.1); padding: 2px 6px; border-radius: 4px; }
+        @media (max-width: 850px) { .grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -24,32 +26,32 @@
     <main>
         <div class="card" style="border-top: 4px solid var(--cyan);">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h2 style="margin:0;">🔮 下期预测: {{records[0].period}}</h2>
+                <h2 style="margin:0;">🎯 AI 自主决策: {{records[0].period}}</h2>
                 <span class="badge">置信度: {{records[0].conf}}%</span>
             </div>
-            <div style="margin: 30px 0; text-align: center;">
+            <div style="margin: 35px 0; text-align: center;">
                 {% for n in records[0].red %} <span class="ball red-ball">{{ "%02d"|format(n) }}</span> {% endfor %}
                 <span style="color:#334155; margin:0 10px; font-size:20px;">|</span>
                 {% for n in records[0].blue %} <span class="ball blue-ball">{{ "%02d"|format(n) }}</span> {% endfor %}
             </div>
-            <p style="color:#64748b; font-size:13px; margin:0;">AI决策推演: <span style="color:var(--cyan)">{{records[0].exp}}</span></p>
+            <p style="color:#64748b; font-size:13px;">分析状态: <span style="color:var(--cyan)">{{records[0].exp}}</span></p>
         </div>
 
         <div class="card">
-            <h3>📈 命中走势（近15期）</h3>
-            <canvas id="c" height="100"></canvas>
+            <h3>📈 历史命中走势（近15期）</h3>
+            <canvas id="hitChart" height="100"></canvas>
         </div>
 
         <div class="card">
-            <h3>📜 历史回测看板</h3>
+            <h3>📜 数据审计看板</h3>
             <table>
                 {% for r in records[1:] %}
                 <tr>
                     <td><b>{{r.period}}</b></td>
                     <td>
-                        {% for n in r.red %}<span style="color:var(--pink); margin-right:4px;">{{n}}</span>{% endfor %}
+                        {% for n in r.red %}<span style="color:var(--pink); margin-right:5px; font-weight:bold;">{{n}}</span>{% endfor %}
                         <span style="color:#334155">|</span>
-                        {% for n in r.blue %}<span style="color:var(--cyan); margin-left:4px;">{{n}}</span>{% endfor %}
+                        {% for n in r.blue %}<span style="color:var(--cyan); margin-left:5px; font-weight:bold;">{{n}}</span>{% endfor %}
                     </td>
                     <td><span class="{% if r.hit != '0+0' %}hit{% endif %}">{{r.hit}}</span></td>
                 </tr>
@@ -60,35 +62,37 @@
 
     <aside>
         <div class="card">
-            <h3 style="margin-top:0;">🔥 激活强度 Top 10</h3>
+            <h3 style="margin-top:0;">🔥 激活强度 TOP 10</h3>
             {% for n,v in top_numbers %}
-            <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:14px;">
-                <span><span class="ball red-ball" style="width:20px;height:20px;font-size:10px;margin-right:8px;">{{n}}</span></span>
-                <span style="color:var(--cyan); font-weight:bold;">{{v}}</span>
+            <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:14px; align-items:center;">
+                <span class="ball red-ball" style="width:24px;height:24px;font-size:11px;">{{n}}</span>
+                <span style="color:var(--cyan); font-weight:bold; font-family:monospace;">{{v}}</span>
             </div>
             {% endfor %}
         </div>
-        <div class="card" style="font-size:12px; color:#64748b;">
-            DEXTRO V63 采用神经元权重计算与遗漏值补偿双算法并行，每 10 分钟自动核销最新开奖数据。
+        <div class="card" style="font-size:12px; color:#64748b; line-height:1.6;">
+            <b>Dextro V63 自主进化逻辑：</b><br>
+            系统通过“激活强度”识别能量波峰。若连续命中，激活步长会自动上调，强化对当前趋势的捕捉。
         </div>
     </aside>
 </div>
 
 <script>
-new Chart(document.getElementById("c"), {
+new Chart(document.getElementById("hitChart"), {
     type:"line",
     data:{
         labels:{{chart_data.labels|tojson}},
         datasets:[{
-            label: '命中分值',
             data:{{chart_data.values|tojson}},
             borderColor:'#22d3ee',
             tension:0.4,
             fill: true,
-            backgroundColor: 'rgba(34,211,238,0.1)'
+            backgroundColor: 'rgba(34,211,238,0.05)',
+            borderWidth: 2,
+            pointRadius: 3
         }]
     },
-    options: { plugins:{legend:{display:false}}, scales:{y:{min:0, max:7, grid:{color:'#1e293b'}}}}
+    options: { plugins:{legend:{display:false}}, scales:{y:{min:0, max:7, grid:{color:'#1e293b'}}, x:{grid:{display:false}}}}
 });
 </script>
 </body>
