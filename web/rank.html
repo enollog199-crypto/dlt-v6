@@ -1,62 +1,23 @@
 <!DOCTYPE html>
-<html lang="zh">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>荣誉殿堂 - DEXTRO AI</title>
-    <style>
-        :root { --bg: #020617; --card: #0f172a; --cyan: #22d3ee; --gold: #f59e0b; }
-        body { background: var(--bg); color: white; font-family: system-ui; margin: 0; padding: 20px; }
-        .container { max-width: 600px; margin: auto; }
-        .card { background: var(--card); border: 1px solid #1e293b; border-radius: 20px; padding: 30px; box-shadow: 0 20px 25px rgba(0,0,0,0.5); }
-        h2 { color: var(--cyan); text-align: center; margin-bottom: 30px; letter-spacing: 2px; }
-        .rank-item { 
-            display: flex; align-items: center; justify-content: space-between; 
-            padding: 15px; border-bottom: 1px solid #1e293b; transition: 0.3s;
-        }
-        .rank-item:hover { background: rgba(34, 211, 238, 0.05); }
-        .rank-num { 
-            width: 30px; height: 30px; border-radius: 50%; 
-            display: flex; align-items: center; justify-content: center;
-            font-weight: bold; background: #1e293b; font-size: 14px;
-        }
-        .top1 { border: 2px solid var(--gold); color: var(--gold); box-shadow: 0 0 10px rgba(245,158,11,0.2); }
-        .user-info { flex: 1; margin-left: 20px; }
-        .user-name { font-weight: bold; font-size: 16px; }
-        .stat { color: #64748b; font-size: 12px; margin-top: 4px; }
-        .score { color: var(--cyan); font-weight: bold; font-family: monospace; font-size: 18px; }
-        .back-btn { 
-            display: block; text-align: center; margin-top: 30px; 
-            color: #64748b; text-decoration: none; font-size: 14px; 
-            transition: 0.3s;
-        }
-        .back-btn:hover { color: var(--cyan); }
-    </style>
-</head>
+<html>
+<head><meta charset="UTF-8"><title>排行榜 - 大乐透 AI</title>
+<style>
+    body { background: #020617; color: white; font-family: system-ui; padding: 20px; }
+    .container { max-width: 600px; margin: auto; background: #0f172a; padding: 30px; border-radius: 20px; border: 1px solid #1e293b; }
+    h2 { color: #22d3ee; text-align: center; margin-bottom: 30px; }
+    .row { display: flex; justify-content: space-between; padding: 15px; border-bottom: 1px solid #1e293b; }
+    .back { display: block; text-align: center; margin-top: 20px; color: #22d3ee; text-decoration: none; font-size: 14px; }
+</style></head>
 <body>
-
-<div class="container">
-    <div class="card">
-        <h2>🏆 命中贡献榜</h2>
-        
+    <div class="container">
+        <h2>🏆 命中贡献排行榜</h2>
         {% for r in rows %}
-        <div class="rank-item">
-            <div class="rank-num {% if loop.index == 1 %}top1{% endif %}">
-                {{ loop.index }}
-            </div>
-            <div class="user-info">
-                <div class="user-name">{{ r[0] }}</div>
-                <div class="stat">参与核销: {{ r[2] }} 次</div>
-            </div>
-            <div class="score">
-                {{ "%.2f"|format(r[1]) }}
-            </div>
+        <div class="row">
+            <span>{{ loop.index }}. {{ r[0] }}</span>
+            <span style="color:#22d3ee; font-family:monospace;">{{ "%.2f"|format(r[1]) }} ({{ r[2] }}次)</span>
         </div>
         {% endfor %}
-
-        <a href="/" class="back-btn">← 返回神经决策控制台</a>
+        <a href="/" class="back">← 返回神经决策系统</a>
     </div>
-</div>
-
 </body>
 </html>
