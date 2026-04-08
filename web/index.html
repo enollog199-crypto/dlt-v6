@@ -1,70 +1,59 @@
+<!DOCTYPE html>
 <html>
 <head>
+<meta charset="UTF-8">
+<title>Dextro AI V63</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
-body{background:#020617;color:#fff;font-family:Arial;text-align:center;}
-.card{background:#1e293b;margin:20px;padding:20px;border-radius:12px;}
-.ball{display:inline-block;margin:4px;padding:8px;border-radius:50%;}
-.red{background:#ef4444;}
-.blue{background:#3b82f6;}
-.green{color:#22c55e;}
-.gray{color:#94a3b8;}
+body{background:#020617;color:#fff;font-family:Arial;padding:20px;}
+.card{background:#111827;padding:20px;border-radius:12px;margin-bottom:20px;}
+.ball{display:inline-block;margin:5px;padding:8px;border-radius:8px;font-weight:bold;}
+.red{color:#f43f5e;border:1px solid #f43f5e;}
+.blue{color:#22d3ee;border:1px solid #22d3ee;}
 </style>
 </head>
 
 <body>
 
-<h1>🎯 大乐透 V60 AI系统</h1>
+<h2>🎯 Dextro AI V63（信任版）</h2>
 
-{% if latest %}
 <div class="card">
-<h3>📊 最新开奖（{{latest.period}}）</h3>
+<h3>🔮 下期预测（{{records[0].period}}）</h3>
 
-{% for n in latest.red %}
+{% for n in records[0].red %}
 <span class="ball red">{{n}}</span>
 {% endfor %}
-<br>
-{% for n in latest.blue %}
+|
+{% for n in records[0].blue %}
 <span class="ball blue">{{n}}</span>
 {% endfor %}
-</div>
-{% endif %}
 
-<div class="card">
-<h3>🧠 模型置信度：{{confidence}}%</h3>
+<p>📊 置信度：{{records[0].conf}}%</p>
+<p>🧠 AI判断：{{records[0].exp}}</p>
 </div>
 
 <div class="card">
-<h3>🔥 AI关注号码 Top10</h3>
+<h3>📈 命中走势</h3>
+<canvas id="c"></canvas>
+</div>
 
+<div class="card">
+<h3>🔥 热点Top10</h3>
 {% for n,v in top_numbers %}
-<span class="ball red">{{n}}</span> {{ "%.2f"|format(v) }}<br>
+<div>{{n}} → {{v}}</div>
 {% endfor %}
-
 </div>
 
-<div class="card">
-<h3>📈 历史预测记录</h3>
-
-<table border="1" style="width:100%;color:white;">
-<tr><th>期号</th><th>预测</th><th>命中</th></tr>
-
-{% for r in records %}
-<tr>
-<td>{{r.period}}</td>
-<td>{{r.red}} | {{r.blue}}</td>
-<td class="green">
-{% if r.hit == "/" %}
-<span class="gray">/</span>
-{% else %}
-{{r.hit}}
-{% endif %}
-</td>
-</tr>
-{% endfor %}
-
-</table>
-
-</div>
+<script>
+new Chart(document.getElementById("c"),{
+type:"line",
+data:{
+labels:{{chart_data.labels|tojson}},
+datasets:[{data:{{chart_data.values|tojson}},borderWidth:2}]
+}
+});
+</script>
 
 </body>
 </html>
