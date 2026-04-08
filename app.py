@@ -1,29 +1,24 @@
-from flask import Flask, render_template, request, redirect, session
+from flask import Flask, render_template, session, request, redirect
 import sqlite3, requests, re, json, os, random
 from collections import Counter
 from datetime import datetime
 
 app = Flask(__name__, template_folder="web")
-app.secret_key = "v46_fix"
+app.secret_key = "v46.2"
 
 DB="data.db"
-PREDICT_FILE="predict.json"
+STATS_FILE="stats.json"
 
 # ===== 数据库 =====
 def get_db():
     conn=sqlite3.connect(DB)
     c=conn.cursor()
-
-    c.execute("""CREATE TABLE IF NOT EXISTS users(
-        id INTEGER PRIMARY KEY,
-        username TEXT,
-        password TEXT
-    )""")
-
+    c.execute("CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, username TEXT, password TEXT)")
+    c.execute("CREATE TABLE IF NOT EXISTS hits(id INTEGER PRIMARY KEY, hit INT)")
     conn.commit()
     return conn
 
-# ===== 获取开奖（带期号日期）=====
+# ===== 获取真实开奖（修复版）=====
 def fetch_history():
     try:
         url="https://datachart.500.com/dlt/history/newinc/history.php"
@@ -32,15 +27,17 @@ def fetch_history():
         rows=re.findall(r'<tr class="t_tr1">(.*?)</tr>',html,re.S)
 
         history=[]
-        for row in rows[:50]:
+        for row in rows[:30]:
             tds=re.findall(r'<td.*?>(.*?)</td>',row)
 
-            period=tds[0]
-            date=tds[1]
+            if len(tds) < 9:
+                continue
 
-            nums=re.findall(r'\d{2}', "".join(tds[2:9]))
-            red=list(map(int,nums[:5]))
-            blue=list(map(int,nums[5:7]))
+            period=tds[0].strip()
+            date=tds[1].strip()
+
+            red=list(map(int, re.findall(r'\d{2}', "".join(tds[2:7]))))
+            blue=list(map(int, re.findall(r'\d{2}', "".join(tds[7:9]))))
 
             history.append({
                 "period":period,
@@ -74,7 +71,7 @@ def blue_model(history):
     for h in history: c.update(h["blue"])
     return [n for n,_ in c.most_common()]
 
-# ===== 生成预测（带策略标签）=====
+# ===== AI预测（带标签）=====
 def gen_one(history, mode):
     h=hot(history)
     c=cold(history)
@@ -89,11 +86,7 @@ def gen_one(history, mode):
     red=sorted(random.sample(pool,5))
     blue=sorted(random.sample(blue_model(history)[:6],2))
 
-    return {
-        "red":red,
-        "blue":blue,
-        "mode":mode
-    }
+    return {"red":red,"blue":blue,"mode":mode}
 
 def gen_multi(history):
     return [
@@ -103,9 +96,26 @@ def gen_multi(history):
     ]
 
 # ===== 命中 =====
-def hit(p,r):
+def calc_hit(p,r):
     return len(set(p["red"])&set(r["red"])) + \
            len(set(p["blue"])&set(r["blue"]))
+
+# ===== 统计 =====
+def load_stats():
+    if os.path.exists(STATS_FILE):
+        return json.load(open(STATS_FILE))
+    return {"cost":0,"win":0,"round":0}
+
+def save_stats(s):
+    json.dump(s,open(STATS_FILE,"w"))
+
+# ===== 趋势 =====
+def get_trend():
+    conn=get_db()
+    c=conn.cursor()
+    c.execute("SELECT hit FROM hits ORDER BY id DESC LIMIT 10")
+    rows=c.fetchall()
+    return [r[0] for r in rows[::-1]]
 
 # ===== 首页 =====
 @app.route("/")
@@ -115,16 +125,54 @@ def home():
 
     preds=gen_multi(history)
 
+    conn=get_db()
+    c=conn.cursor()
+
+    total_hit=0
     for p in preds:
-        p["hit"]=hit(p,latest) if latest else 0
+        h=calc_hit(p,latest) if latest else 0
+        p["hit"]=h
+        total_hit+=h
+        c.execute("INSERT INTO hits(hit) VALUES (?)",(h,))
+
+    conn.commit()
+
+    # ===== ROI统计 =====
+    stats=load_stats()
+    stats["round"]+=1
+    stats["cost"]+=6
+    stats["win"]+=total_hit*2
+    save_stats(stats)
+
+    roi=round((stats["win"]-stats["cost"])/stats["cost"],2) if stats["cost"]>0 else 0
+
+    trend=get_trend()
 
     return render_template("index.html",
         latest=latest,
         preds=preds,
+        stats=stats,
+        roi=roi,
+        trend=trend,
         user=session.get("username")
     )
 
-# ===== 注册 =====
+# ===== 登录/注册 =====
+@app.route("/login",methods=["GET","POST"])
+def login():
+    if request.method=="POST":
+        u=request.form["username"]
+        p=request.form["password"]
+
+        conn=get_db()
+        c=conn.cursor()
+        c.execute("SELECT * FROM users WHERE username=? AND password=?",(u,p))
+        if c.fetchone():
+            session["username"]=u
+            return redirect("/")
+
+    return '<form method=post>user<input name=username> pass<input name=password><button>登录</button></form>'
+
 @app.route("/register",methods=["GET","POST"])
 def register():
     if request.method=="POST":
@@ -137,41 +185,8 @@ def register():
         conn.commit()
         return redirect("/login")
 
-    return '''
-    <h2>注册</h2>
-    <form method=post>
-    用户:<input name=username><br>
-    密码:<input name=password type=password><br>
-    <button>注册</button>
-    </form>
-    '''
+    return '<form method=post>user<input name=username> pass<input name=password><button>注册</button></form>'
 
-# ===== 登录 =====
-@app.route("/login",methods=["GET","POST"])
-def login():
-    if request.method=="POST":
-        u=request.form["username"]
-        p=request.form["password"]
-
-        conn=get_db()
-        c=conn.cursor()
-        c.execute("SELECT * FROM users WHERE username=? AND password=?",(u,p))
-        user=c.fetchone()
-
-        if user:
-            session["username"]=u
-            return redirect("/")
-
-    return '''
-    <h2>登录</h2>
-    <form method=post>
-    用户:<input name=username><br>
-    密码:<input name=password type=password><br>
-    <button>登录</button>
-    </form>
-    '''
-
-# ===== 退出 =====
 @app.route("/logout")
 def logout():
     session.clear()
