@@ -1,18 +1,26 @@
 <!DOCTYPE html>
 <html>
-<head><meta charset="UTF-8"><title>登录 - Dextro AI</title>
+<head><meta charset="UTF-8"><title>登录 - 大乐透 AI</title>
 <style>
     body { background: #020617; color: white; font-family: system-ui; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
     .card { background: #0f172a; padding: 40px; border-radius: 20px; border: 1px solid #1e293b; width: 300px; box-shadow: 0 20px 25px rgba(0,0,0,0.5); }
-    h2 { color: #22d3ee; text-align: center; margin-bottom: 25px; }
+    h2 { color: #22d3ee; text-align: center; margin-bottom: 25px; font-size: 20px; }
     input { width: 100%; padding: 12px; margin: 10px 0; background: #1e293b; border: 1px solid #334155; border-radius: 8px; color: white; box-sizing: border-box; }
     button { width: 100%; padding: 12px; margin-top: 15px; background: #22d3ee; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: #020617; }
+    .footer { text-align: center; margin-top: 20px; font-size: 12px; }
+    a { color: #64748b; text-decoration: none; }
 </style></head>
 <body>
     <div class="card">
-        <h2>Dextro AI 登录</h2>
-        <form method="post"><input name="username" placeholder="用户名" required><input name="password" type="password" placeholder="密码" required><button>确认身份</button></form>
-        <p style="text-align:center; font-size:12px; margin-top:15px;"><a href="/register" style="color:#22d3ee; text-decoration:none;">新管理员注册</a></p>
+        <h2>大乐透 AI 分析系统</h2>
+        <form method="post">
+            <input name="username" placeholder="管理员名称" required>
+            <input name="password" type="password" placeholder="管理密码" required>
+            <button>进入系统</button>
+        </form>
+        <div class="footer">
+            <a href="/">← 返回分析页</a> | <a href="/register">注册管理员</a>
+        </div>
     </div>
 </body>
 </html>
