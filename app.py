@@ -5,9 +5,8 @@ from functools import wraps
 from datetime import datetime
 
 app = Flask(__name__, template_folder="web")
-app.secret_key = os.environ.get("SECRET_KEY", "dextro_v9_pro_key")
+app.secret_key = os.environ.get("SECRET_KEY", "dextro_v9_secure_88")
 
-# 奖金表
 PRIZE_MAP = {"5+2":10000000,"5+1":800000,"5+0":10000,"4+2":3000,"4+1":300,"4+0":100,"3+2":200,"3+1":15,"3+0":5,"2+2":15,"1+2":5,"2+1":5,"0+2":5}
 
 def init_db():
@@ -15,8 +14,6 @@ def init_db():
     c = conn.cursor()
     c.execute('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, username TEXT UNIQUE, password TEXT, credits REAL DEFAULT 100.0, last_checkin TEXT)')
     c.execute('''CREATE TABLE IF NOT EXISTS predict (period TEXT PRIMARY KEY, draw_date TEXT, red TEXT, blue TEXT, hit_red INT, hit_blue INT, cost REAL, winnings REAL, source_type TEXT)''')
-    c.execute('CREATE TABLE IF NOT EXISTS weights (num INT PRIMARY KEY, score REAL)')
-    for i in range(1, 48): c.execute("INSERT OR IGNORE INTO weights VALUES (?,?)", (i, 10.0))
     conn.commit()
     conn.close()
 
@@ -47,22 +44,13 @@ def login():
         if user and check_password_hash(user[2], p):
             session['user'] = u
             return redirect(url_for('index'))
-        return "账号或密码错误"
+        return "密码错误或账号不存在"
     return render_template("login.html")
 
 @app.route("/logout")
 def logout():
     session.pop('user', None)
     return redirect(url_for('login'))
-
-@app.route("/change_password", methods=["POST"])
-@login_required
-def change_password():
-    new_p = request.form.get("new_password")
-    conn = sqlite3.connect("ai.db")
-    conn.execute("UPDATE users SET password=? WHERE username=?", (generate_password_hash(new_p), session['user']))
-    conn.commit()
-    return redirect(url_for('index'))
 
 @app.route("/checkin", methods=["POST"])
 @login_required
@@ -71,7 +59,7 @@ def checkin():
     conn = sqlite3.connect("ai.db")
     user = conn.execute("SELECT last_checkin FROM users WHERE username=?", (session['user'],)).fetchone()
     if user[0] != today:
-        reward = random.randint(20, 100)
+        reward = random.randint(20, 80)
         conn.execute("UPDATE users SET credits = credits + ?, last_checkin = ? WHERE username=?", (reward, today, session['user']))
         conn.commit()
     return redirect(url_for('index'))
@@ -83,6 +71,7 @@ def index():
     conn = sqlite3.connect("ai.db")
     user_info = conn.execute("SELECT credits, last_checkin FROM users WHERE username=?", (session['user'],)).fetchone()
     
+    # 抓取逻辑
     try:
         res = requests.get("https://datachart.500.com/dlt/history/newinc/history.php", timeout=5)
         res.encoding = 'utf-8'
@@ -113,6 +102,5 @@ def index():
     return render_template("index.html", user=session['user'], credits=user_info[0], can_checkin=(user_info[1]!=datetime.now().strftime('%Y-%m-%d')), records=formatted, chart=chart_data, top_users=top_users)
 
 if __name__ == "__main__":
-    # Render 必须配置项
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
