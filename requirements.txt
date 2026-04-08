@@ -1,5 +1,5 @@
-flask
+Flask
 requests
-gunicorn
-numpy
 pandas
+numpy
+werkzeug
