@@ -1,12 +1,37 @@
 <html>
 <head>
-<title>大乐透 V37</title>
+<title>大乐透AI V37</title>
 <style>
-body{background:#020617;color:#fff;text-align:center;font-family:Arial;}
-.ball{display:inline-block;margin:5px;padding:10px;border-radius:50%;}
+body{
+    background: linear-gradient(135deg,#020617,#0f172a);
+    color:#fff;text-align:center;font-family:Arial;
+}
+h1{margin-top:20px;}
+.card{
+    background:#1e293b;
+    margin:20px auto;
+    padding:20px;
+    border-radius:15px;
+    width:90%;
+    max-width:500px;
+    box-shadow:0 0 20px rgba(0,0,0,0.5);
+}
+.ball{
+    display:inline-block;
+    margin:6px;
+    padding:12px;
+    border-radius:50%;
+    font-weight:bold;
+}
 .red{background:#ef4444;}
 .blue{background:#3b82f6;}
-.card{background:#1e293b;margin:20px;padding:20px;border-radius:10px;}
+.btn{
+    padding:8px 15px;
+    background:#22c55e;
+    border:none;
+    border-radius:8px;
+    color:#fff;
+}
 </style>
 </head>
 
@@ -21,44 +46,42 @@ body{background:#020617;color:#fff;text-align:center;font-family:Arial;}
 {% endif %}
 
 <div class="card">
-<h3>最新开奖（{{data.latest.period}}）</h3>
+<h3>📊 最新开奖（{{data.latest.period}}）</h3>
+
 <div>
 {% for n in data.latest.red %}
 <span class="ball red">{{n}}</span>
 {% endfor %}
 </div>
+
 <div>
 {% for n in data.latest.blue %}
 <span class="ball blue">{{n}}</span>
 {% endfor %}
 </div>
+
 </div>
 
 <div class="card">
-<h3>下期预测（{{data.predict.period}}）</h3>
+<h3>🤖 下期预测（已锁定）</h3>
 
-<div>
-前区：
+<p>前区：</p>
 {% for n in data.predict.red %}
 <span class="ball red">{{n}}</span>
 {% endfor %}
-</div>
 
-<div>
-后区：
+<p>后区：</p>
 {% for n in data.predict.blue %}
 <span class="ball blue">{{n}}</span>
 {% endfor %}
+
+<p>🎯 命中：红 {{data.predict.hit.red}} / 蓝 {{data.predict.hit.blue}}</p>
+
+<p style="color:#94a3b8;">
+预测生成后锁定，等待下一期开奖验证准确性
+</p>
+
 </div>
-
-<p>命中：红 {{data.predict.hit.red}} / 蓝 {{data.predict.hit.blue}}</p>
-<p>方法：基础模型（后续可升级AI）</p>
-
-</div>
-
-<script>
-setTimeout(()=>location.reload(),8000);
-</script>
 
 </body>
 </html>
