@@ -1,18 +1,18 @@
 <html>
 <head>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 body{background:#020617;color:#fff;text-align:center;font-family:Arial;}
 .card{background:#1e293b;margin:20px;padding:20px;border-radius:12px;}
 .ball{display:inline-block;margin:5px;padding:10px;border-radius:50%;}
 .red{background:#ef4444;}
 .blue{background:#3b82f6;}
-.tag{color:#facc15;}
 </style>
 </head>
 
 <body>
 
-<h1>🎯 大乐透 AI V46.1</h1>
+<h1>💰 大乐透 AI V46.2</h1>
 
 {% if user %}
 <p>欢迎 {{user}} ｜ <a href="/logout">退出</a></p>
@@ -22,7 +22,6 @@ body{background:#020617;color:#fff;text-align:center;font-family:Arial;}
 
 <div class="card">
 <h3>📊 最新开奖</h3>
-
 <p>期号：{{latest.period}}</p>
 <p>日期：{{latest.date}}</p>
 
@@ -40,22 +39,42 @@ body{background:#020617;color:#fff;text-align:center;font-family:Arial;}
 
 {% for p in preds %}
 <div>
-<p class="tag">{{p.mode}}</p>
-
-{% for n in p.red %}
-<span class="ball red">{{n}}</span>
-{% endfor %}
+<p>{{p.mode}}</p>
+{% for n in p.red %}<span class="ball red">{{n}}</span>{% endfor %}
 <br>
-{% for n in p.blue %}
-<span class="ball blue">{{n}}</span>
-{% endfor %}
-
+{% for n in p.blue %}<span class="ball blue">{{n}}</span>{% endfor %}
 <p>命中：{{p.hit}}</p>
 <hr>
 </div>
 {% endfor %}
-
 </div>
+
+<div class="card">
+<h3>📈 命中趋势</h3>
+<canvas id="chart"></canvas>
+</div>
+
+<div class="card">
+<h3>💰 ROI分析</h3>
+<p>期数：{{stats.round}}</p>
+<p>投入：{{stats.cost}}</p>
+<p>收益：{{stats.win}}</p>
+<p>ROI：{{roi}}</p>
+</div>
+
+<script>
+new Chart(document.getElementById("chart"), {
+    type:'line',
+    data:{
+        labels:{{trend|tojson}},
+        datasets:[{
+            label:'命中数',
+            data:{{trend|tojson}},
+            borderWidth:2
+        }]
+    }
+});
+</script>
 
 </body>
 </html>
