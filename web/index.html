@@ -8,15 +8,21 @@ body{background:#020617;color:#fff;font-family:Arial;text-align:center;}
 .blue{background:#3b82f6;}
 .green{color:#22c55e;}
 .gray{color:#94a3b8;}
+.btn{padding:10px 20px;background:#22c55e;border:none;color:#000;border-radius:6px;}
 </style>
 </head>
 
 <body>
 
-<h1>🎯 大乐透 V55 稳定商业版</h1>
+<h1>🎯 大乐透 V56 AI系统</h1>
 
+<form method="post">
+<button class="btn">生成下一期预测</button>
+</form>
+
+{% if latest %}
 <div class="card">
-<h3>📊 最新开奖</h3>
+<h3>📊 最新开奖（{{latest.period}}）</h3>
 
 {% for n in latest.red %}
 <span class="ball red">{{n}}</span>
@@ -27,42 +33,44 @@ body{background:#020617;color:#fff;font-family:Arial;text-align:center;}
 {% endfor %}
 
 </div>
+{% endif %}
 
 <div class="card">
-<h3>🤖 AI预测</h3>
+<h3>🤖 本期预测</h3>
 
 {% for p in preds %}
-
 <p>
-🎯 红球：
+【{{p.mode}}】
+
 {% for n in p.red %}
 <span class="ball red">{{n}}</span>
 {% endfor %}
-<br>
-🔵 蓝球：
+|
 {% for n in p.blue %}
 <span class="ball blue">{{n}}</span>
 {% endfor %}
-<br>
-<span class="green">命中：{{p.hit}}</span>
+
 </p>
-
-<hr>
-
 {% endfor %}
 
 </div>
 
 <div class="card">
-<h3>📈 历史记录</h3>
+<h3>📈 历史预测 vs 开奖</h3>
 
 <table border="1" style="width:100%;color:white;">
-<tr><th>红球</th><th>蓝球</th><th>命中</th></tr>
+<tr>
+<th>期号</th>
+<th>类型</th>
+<th>预测</th>
+<th>命中</th>
+</tr>
 
 {% for r in records %}
 <tr>
-<td>{{r.red}}</td>
-<td>{{r.blue}}</td>
+<td>{{r.period}}</td>
+<td>{{r.mode}}</td>
+<td>{{r.red}} | {{r.blue}}</td>
 <td class="green">{{r.hit}}</td>
 </tr>
 {% endfor %}
@@ -70,25 +78,6 @@ body{background:#020617;color:#fff;font-family:Arial;text-align:center;}
 </table>
 
 </div>
-
-<div class="card">
-<h3>📊 命中趋势</h3>
-<canvas id="chart"></canvas>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-new Chart(document.getElementById('chart'), {
-    type: 'line',
-    data: {
-        labels: {{ range(results|length)|list }},
-        datasets: [{
-            label: '命中数',
-            data: {{ results|tojson }}
-        }]
-    }
-});
-</script>
 
 </body>
 </html>
