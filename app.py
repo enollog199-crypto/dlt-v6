@@ -105,4 +105,49 @@ def index():
                            latest=latest, 
                            records=records, 
                            top_numbers=top_numbers, 
-                           chart_data={"labels":chart_labels[::-1],"values":chart_values[::-
+                           chart_data={"labels":chart_labels[::-1],"values":chart_values[::-1]},
+                           logged_in=('user' in session))
+
+# ===== 路由：排行榜 =====
+@app.route("/rank")
+def rank():
+    conn = sqlite3.connect("ai.db")
+    users = conn.execute("SELECT username FROM users").fetchall()
+    # 模拟数据供展示
+    rows = [[u[0], random.uniform(0.5, 3.8), random.randint(1, 15)] for u in users]
+    conn.close()
+    return render_template("rank.html", rows=rows, logged_in=('user' in session))
+
+# ===== 管理员：登录/注册/退出 =====
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        u, p = request.form.get("username"), request.form.get("password")
+        conn = sqlite3.connect("ai.db")
+        user = conn.execute("SELECT * FROM users WHERE username=?", (u,)).fetchone()
+        conn.close()
+        if user and check_password_hash(user[2], p):
+            session['user'] = u
+            return redirect(url_for('index'))
+    return render_template("login.html")
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        u, p = request.form.get("username"), request.form.get("password")
+        conn = sqlite3.connect("ai.db")
+        try:
+            conn.execute("INSERT INTO users (username, password) VALUES (?,?)", (u, generate_password_hash(p)))
+            conn.commit(); return redirect(url_for('login'))
+        except: return "管理员创建失败"
+        finally: conn.close()
+    return render_template("register.html")
+
+@app.route("/logout")
+def logout():
+    session.pop('user', None)
+    return redirect(url_for('index'))
+
+if __name__ == "__main__":
+    init_db()
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
