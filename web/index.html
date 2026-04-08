@@ -1,70 +1,59 @@
 <html>
 <head>
 <style>
-body{
-    background:linear-gradient(135deg,#020617,#0f172a);
-    color:#fff;font-family:Arial;text-align:center;
-}
-.container{max-width:800px;margin:auto;}
-.card{
-    background:#1e293b;
-    margin:20px;padding:20px;border-radius:15px;
-}
+body{background:#020617;color:#fff;text-align:center;font-family:Arial;}
+.card{background:#1e293b;margin:20px;padding:20px;border-radius:12px;}
 .ball{display:inline-block;margin:5px;padding:10px;border-radius:50%;}
 .red{background:#ef4444;}
 .blue{background:#3b82f6;}
-.dan{background:#facc15;color:#000;}
-.stat{font-size:18px;margin:5px;}
-.good{color:#22c55e;}
-.bad{color:#ef4444;}
+.tag{color:#facc15;}
 </style>
 </head>
 
 <body>
 
-<div class="container">
+<h1>🎯 大乐透 AI V46.1</h1>
 
-<h1>💰 大乐透 AI V46（盈利策略版）</h1>
+{% if user %}
+<p>欢迎 {{user}} ｜ <a href="/logout">退出</a></p>
+{% else %}
+<a href="/login">登录</a> | <a href="/register">注册</a>
+{% endif %}
 
 <div class="card">
 <h3>📊 最新开奖</h3>
-{% for n in latest.red %}<span class="ball red">{{n}}</span>{% endfor %}
-<br>
-{% for n in latest.blue %}<span class="ball blue">{{n}}</span>{% endfor %}
-</div>
 
-<div class="card">
-<h3>🤖 AI预测（3注）</h3>
+<p>期号：{{latest.period}}</p>
+<p>日期：{{latest.date}}</p>
 
-{% for p in preds %}
-<div>
-<p>胆码：</p>
-{% for n in p.dan %}<span class="ball dan">{{n}}</span>{% endfor %}
+{% for n in latest.red %}
+<span class="ball red">{{n}}</span>
+{% endfor %}
 <br>
-{% for n in p.red %}<span class="ball red">{{n}}</span>{% endfor %}
-<br>
-{% for n in p.blue %}<span class="ball blue">{{n}}</span>{% endfor %}
-<p>命中：{{p.hit}}</p>
-<hr>
-</div>
+{% for n in latest.blue %}
+<span class="ball blue">{{n}}</span>
 {% endfor %}
 </div>
 
 <div class="card">
-<h3>💰 投注建议</h3>
-<p class="stat">当前推荐倍数：{{bet}} 倍</p>
-<p>策略：命中低 → 加倍追损 ｜ 命中高 → 降低风险</p>
-</div>
+<h3>🤖 AI推荐</h3>
 
-<div class="card">
-<h3>📊 收益统计</h3>
-<p class="stat">总期数：{{stats.round}}</p>
-<p class="stat">总投入：{{stats.cost}}</p>
-<p class="stat">总收益：{{stats.win}}</p>
-<p class="stat">ROI：
-<span class="{{'good' if roi>0 else 'bad'}}">{{roi}}</span>
-</p>
+{% for p in preds %}
+<div>
+<p class="tag">{{p.mode}}</p>
+
+{% for n in p.red %}
+<span class="ball red">{{n}}</span>
+{% endfor %}
+<br>
+{% for n in p.blue %}
+<span class="ball blue">{{n}}</span>
+{% endfor %}
+
+<p>命中：{{p.hit}}</p>
+<hr>
 </div>
+{% endfor %}
 
 </div>
 
