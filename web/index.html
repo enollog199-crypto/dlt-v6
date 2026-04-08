@@ -9,11 +9,21 @@ body{background:#020617;color:#fff;font-family:Arial;text-align:center;}
 .green{color:#22c55e;}
 .gray{color:#94a3b8;}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
 
-<h1>🎯 大乐透 V49 专业版</h1>
+<h1>🎯 大乐透 V54 AI商业版</h1>
+
+<form method="post">
+<select name="mode">
+  <option value="stable">稳健</option>
+  <option value="aggressive">激进</option>
+  <option value="cold">冷号</option>
+</select>
+<button type="submit">生成预测</button>
+</form>
 
 <div class="card">
 <h3>📊 最新开奖</h3>
@@ -29,51 +39,52 @@ body{background:#020617;color:#fff;font-family:Arial;text-align:center;}
 </div>
 
 <div class="card">
-<h3>🤖 AI预测</h3>
+<h3>🤖 AI预测（多模型）</h3>
+
+{% for p in preds %}
 
 <p>🎯 胆码：
-{% for n in pred.dan %}
+{% for n in p.dan %}
 <span class="ball red">{{n}}</span>
 {% endfor %}
 </p>
 
 <p>❌ 杀号：
 <span class="gray">
-{% for n in pred.kill %}
+{% for n in p.kill %}
 {{n}} 
 {% endfor %}
 </span>
 </p>
 
 <p>
-{% for n in pred.red %}
+{% for n in p.red %}
 <span class="ball red">{{n}}</span>
 {% endfor %}
 <br>
-{% for n in pred.blue %}
+{% for n in p.blue %}
 <span class="ball blue">{{n}}</span>
 {% endfor %}
 </p>
 
+<p class="green">命中：{{p.hit}}</p>
+
+<hr>
+
+{% endfor %}
+
 </div>
 
 <div class="card">
-<h3>📈 近10期对比</h3>
+<h3>📈 最近预测记录</h3>
 
 <table border="1" style="width:100%;color:white;">
-<tr><th>期号</th><th>AI预测</th><th>实际</th><th>命中</th></tr>
+<tr><th>红球</th><th>蓝球</th><th>命中</th></tr>
 
 {% for r in records %}
 <tr>
-<td>{{r.period}}</td>
-<td>
-{% for n in r.pred.red %}{{n}} {% endfor %} |
-{% for n in r.pred.blue %}{{n}} {% endfor %}
-</td>
-<td>
-{% for n in r.real.red %}{{n}} {% endfor %} |
-{% for n in r.real.blue %}{{n}} {% endfor %}
-</td>
+<td>{{r.red}}</td>
+<td>{{r.blue}}</td>
 <td class="green">{{r.hit}}</td>
 </tr>
 {% endfor %}
@@ -81,6 +92,24 @@ body{background:#020617;color:#fff;font-family:Arial;text-align:center;}
 </table>
 
 </div>
+
+<div class="card">
+<h3>📊 AI命中趋势</h3>
+<canvas id="chart"></canvas>
+</div>
+
+<script>
+new Chart(document.getElementById('chart'), {
+    type: 'line',
+    data: {
+        labels: {{ range(results|length)|list }},
+        datasets: [{
+            label: '命中数',
+            data: {{ results|tojson }}
+        }]
+    }
+});
+</script>
 
 </body>
 </html>
