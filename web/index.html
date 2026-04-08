@@ -1,87 +1,54 @@
 <html>
 <head>
-<title>大乐透AI V37</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-body{
-    background: linear-gradient(135deg,#020617,#0f172a);
-    color:#fff;text-align:center;font-family:Arial;
-}
-h1{margin-top:20px;}
-.card{
-    background:#1e293b;
-    margin:20px auto;
-    padding:20px;
-    border-radius:15px;
-    width:90%;
-    max-width:500px;
-    box-shadow:0 0 20px rgba(0,0,0,0.5);
-}
-.ball{
-    display:inline-block;
-    margin:6px;
-    padding:12px;
-    border-radius:50%;
-    font-weight:bold;
-}
+body{background:#0f172a;color:#fff;text-align:center;}
+.ball{padding:10px;border-radius:50%;margin:5px;}
 .red{background:#ef4444;}
 .blue{background:#3b82f6;}
-.btn{
-    padding:8px 15px;
-    background:#22c55e;
-    border:none;
-    border-radius:8px;
-    color:#fff;
-}
 </style>
 </head>
 
 <body>
 
-<h1>🎯 大乐透AI预测 V37</h1>
+<h1>🎯 大乐透AI V39</h1>
 
-{% if user %}
-<p>欢迎：{{user}} | <a href="/logout">退出</a></p>
-{% else %}
-<p><a href="/login">登录</a> | <a href="/register">注册</a></p>
-{% endif %}
+<a href="/rank">🏆 排行榜</a>
 
-<div class="card">
-<h3>📊 最新开奖（{{data.latest.period}}）</h3>
-
-<div>
+<h3>最新开奖</h3>
 {% for n in data.latest.red %}
 <span class="ball red">{{n}}</span>
 {% endfor %}
-</div>
-
-<div>
+|
 {% for n in data.latest.blue %}
 <span class="ball blue">{{n}}</span>
 {% endfor %}
-</div>
 
-</div>
-
-<div class="card">
-<h3>🤖 下期预测（已锁定）</h3>
-
-<p>前区：</p>
+<h3>AI预测</h3>
 {% for n in data.predict.red %}
 <span class="ball red">{{n}}</span>
 {% endfor %}
-
-<p>后区：</p>
+|
 {% for n in data.predict.blue %}
 <span class="ball blue">{{n}}</span>
 {% endfor %}
 
-<p>🎯 命中：红 {{data.predict.hit.red}} / 蓝 {{data.predict.hit.blue}}</p>
+<p>命中：{{data.predict.hit.red}} + {{data.predict.hit.blue}}</p>
 
-<p style="color:#94a3b8;">
-预测生成后锁定，等待下一期开奖验证准确性
-</p>
+<canvas id="chart"></canvas>
 
-</div>
+<script>
+new Chart(document.getElementById("chart"), {
+    type: 'line',
+    data: {
+        labels: ["1","2","3","4","5"],
+        datasets: [{
+            label: "命中趋势",
+            data: [1,2,3,2,4]
+        }]
+    }
+});
+</script>
 
 </body>
 </html>
