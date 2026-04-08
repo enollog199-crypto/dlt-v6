@@ -1,52 +1,47 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template
 import requests, re, random, sqlite3
 from collections import Counter
 
 app = Flask(__name__, template_folder="web")
 
-# ===== 数据库 =====
+# ===== DB =====
 def init_db():
     conn = sqlite3.connect("ai.db")
     c = conn.cursor()
+
     c.execute('''CREATE TABLE IF NOT EXISTS predict
-                 (period TEXT, mode TEXT, red TEXT, blue TEXT, hit INT)''')
-    conn.commit()
-    conn.close()
+                 (period TEXT, mode TEXT, red TEXT, blue TEXT, hit TEXT)''')
 
-def save_predict(period, mode, red, blue):
-    conn = sqlite3.connect("ai.db")
-    c = conn.cursor()
-    c.execute("INSERT INTO predict VALUES (?,?,?,?,?)",
-              (period, mode, str(red), str(blue), 0))
-    conn.commit()
-    conn.close()
+    c.execute('''CREATE TABLE IF NOT EXISTS weights
+                 (num INT PRIMARY KEY, score REAL)''')
 
-def update_hit(period, real):
-    conn = sqlite3.connect("ai.db")
-    c = conn.cursor()
-
-    c.execute("SELECT rowid, red, blue FROM predict WHERE period=?", (period,))
-    rows = c.fetchall()
-
-    for r in rows:
-        rid, red, blue = r
-        red = eval(red)
-        blue = eval(blue)
-
-        hit = len(set(red)&set(real["red"])) + len(set(blue)&set(real["blue"]))
-
-        c.execute("UPDATE predict SET hit=? WHERE rowid=?", (hit, rid))
+    # 初始化权重
+    for i in range(1,36):
+        c.execute("INSERT OR IGNORE INTO weights VALUES (?,?)",(i,1.0))
 
     conn.commit()
     conn.close()
 
-def load_predicts():
+def load_weights():
     conn = sqlite3.connect("ai.db")
     c = conn.cursor()
-    c.execute("SELECT * FROM predict ORDER BY period DESC LIMIT 20")
+    c.execute("SELECT * FROM weights")
     rows = c.fetchall()
     conn.close()
-    return [{"period":r[0],"mode":r[1],"red":r[2],"blue":r[3],"hit":r[4]} for r in rows]
+    return {r[0]:r[1] for r in rows}
+
+def update_weights(hit_red):
+    conn = sqlite3.connect("ai.db")
+    c = conn.cursor()
+
+    for n in hit_red:
+        c.execute("UPDATE weights SET score = score + 0.5 WHERE num=?", (n,))
+
+    # 衰减
+    c.execute("UPDATE weights SET score = score * 0.995")
+
+    conn.commit()
+    conn.close()
 
 # ===== 抓数据 =====
 def fetch_history():
@@ -70,52 +65,119 @@ def fetch_history():
     except:
         return []
 
-# ===== AI逻辑 =====
-def gen_by_mode(mode):
-    if mode=="稳健":
-        red=sorted(random.sample(range(1,36),5))
-    elif mode=="激进":
-        red=sorted([random.randint(1,35) for _ in range(5)])
-    else:
-        red=sorted(random.sample(range(10,36),5))
+# ===== 权重池 =====
+def build_pool(weights):
+    pool=[]
+    for n,score in weights.items():
+        pool += [n]*int(score*10)
+    return pool
 
-    blue=sorted(random.sample(range(1,13),2))
+def pick(pool,k,maxn):
+    s=set()
+    while len(s)<k:
+        if pool:
+            s.add(random.choice(pool))
+        else:
+            s.add(random.randint(1,maxn))
+    return sorted(list(s))
 
-    return red,blue
+# ===== AI生成 =====
+def gen_ai(weights):
+    pool = build_pool(weights)
+    red = pick(pool,5,35)
+    blue = pick(pool,2,12)
+    return red, blue
+
+# ===== 保存预测 =====
+def save_predict(period, mode, red, blue):
+    conn = sqlite3.connect("ai.db")
+    c = conn.cursor()
+
+    c.execute("SELECT * FROM predict WHERE period=? AND mode=?", (period, mode))
+    if c.fetchone():
+        conn.close()
+        return
+
+    c.execute("INSERT INTO predict VALUES (?,?,?,?,?)",
+              (period, mode, str(red), str(blue), "/"))
+
+    conn.commit()
+    conn.close()
+
+# ===== 更新命中+学习 =====
+def update_hit_and_learn(history):
+    conn = sqlite3.connect("ai.db")
+    c = conn.cursor()
+
+    weights = load_weights()
+
+    for h in history:
+        period = h["period"]
+        real_red = set(h["red"])
+
+        c.execute("SELECT rowid, red, hit FROM predict WHERE period=?", (period,))
+        rows = c.fetchall()
+
+        for r in rows:
+            rid, red, hit = r
+
+            if hit != "/":
+                continue
+
+            red = set(eval(red))
+            hit_red = list(red & real_red)
+
+            hcount = len(hit_red)
+
+            c.execute("UPDATE predict SET hit=? WHERE rowid=?", (hcount, rid))
+
+            # 🧠 学习
+            update_weights(hit_red)
+
+    conn.commit()
+    conn.close()
+
+# ===== 读取 =====
+def load_predicts():
+    conn = sqlite3.connect("ai.db")
+    c = conn.cursor()
+    c.execute("SELECT * FROM predict ORDER BY period DESC")
+    rows = c.fetchall()
+    conn.close()
+
+    return [{"period":r[0],"mode":r[1],"red":r[2],"blue":r[3],"hit":r[4]} for r in rows]
 
 # ===== 首页 =====
-@app.route("/", methods=["GET","POST"])
+@app.route("/")
 def home():
 
     init_db()
 
-    history=fetch_history()
+    history = fetch_history()
+    latest = history[0] if history else None
 
-    latest=history[0] if history else None
+    weights = load_weights()
 
-    modes=["稳健","激进","冷号"]
+    if latest:
+        conn = sqlite3.connect("ai.db")
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) FROM predict WHERE period=?", (latest["period"],))
+        exists = c.fetchone()[0]
+        conn.close()
 
-    preds=[]
+        if exists == 0:
+            for m in ["AI"]:
+                red, blue = gen_ai(weights)
+                save_predict(latest["period"], m, red, blue)
 
-    if request.method=="POST":
-        for m in modes:
-            red,blue=gen_by_mode(m)
-            preds.append({"mode":m,"red":red,"blue":blue})
+    update_hit_and_learn(history)
 
-            if latest:
-                save_predict(latest["period"],m,red,blue)
-
-    # 更新命中（只对已开奖）
-    if history:
-        for h in history[:10]:
-            update_hit(h["period"],h)
-
-    records=load_predicts()
+    records = load_predicts()
 
     return render_template("index.html",
         latest=latest,
-        preds=preds,
-        records=records
+        records=records,
+        weights=weights
     )
 
 # ===== 启动 =====
