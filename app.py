@@ -1,198 +1,130 @@
-from flask import Flask, render_template, request, redirect, session
-import sqlite3, json, os, random, requests, re
-from collections import Counter
+from flask import Flask, render_template, session
+import requests, re, json, os
+from datetime import datetime
 
 app = Flask(__name__, template_folder="web")
-app.secret_key = "v39_ai"
+app.secret_key = "v41_ai"
 
-MODEL_FILE = "model.json"
-PREDICT_FILE = "predict.json"
+CACHE_FILE = "latest.json"
 
-# ===== 数据库 =====
-def get_db():
-    conn = sqlite3.connect("data.db")
-    c = conn.cursor()
+# ===== 获取真实开奖数据（带期号+日期）=====
+def fetch_latest_real():
+    sources = []
 
-    c.execute("CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, username TEXT, password TEXT)")
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS predictions(
-        id INTEGER PRIMARY KEY,
-        username TEXT,
-        red_hit INT,
-        blue_hit INT
-    )
-    """)
-
-    conn.commit()
-    return conn
-
-# ===== 抓历史数据 =====
-def fetch_history():
+    # ===== 数据源1（500彩票网结构稳定）=====
     try:
-        html = requests.get("https://www.lottery.gov.cn/kj/kjlb.html?dlt").text
-        nums = re.findall(r'\d{2}', html)
+        url = "https://datachart.500.com/dlt/history/newinc/history.php"
+        html = requests.get(url, timeout=5).text
 
-        res=[]
-        for i in range(0,700,7):
-            red=list(map(int, nums[i:i+5]))
-            blue=list(map(int, nums[i+5:i+7]))
-            res.append({"red":red,"blue":blue})
+        rows = re.findall(r'<tr class="t_tr1">(.*?)</tr>', html, re.S)
 
-        return res[:120]
+        data=[]
+        for row in rows[:20]:
+            tds = re.findall(r'<td.*?>(.*?)</td>', row)
+
+            period = tds[0]
+            date = tds[1]
+
+            nums = re.findall(r'\d{2}', "".join(tds[2:9]))
+            red = list(map(int, nums[:5]))
+            blue = list(map(int, nums[5:7]))
+
+            data.append({
+                "period": period,
+                "date": date,
+                "red": red,
+                "blue": blue
+            })
+
+        sources.append(data)
     except:
-        return [{"red":sorted(random.sample(range(1,36),5)),
-                 "blue":sorted(random.sample(range(1,13),2))} for _ in range(80)]
+        pass
 
-# ===== 模型 =====
-def load_model():
-    if os.path.exists(MODEL_FILE):
-        return json.load(open(MODEL_FILE))
-    return {"freq":0.4,"gap":0.3,"rand":0.3}
+    # ===== 数据源2（备用）=====
+    try:
+        url = "https://www.78500.cn/dlt/"
+        html = requests.get(url, timeout=5).text
 
-def save_model(m):
-    json.dump(m, open(MODEL_FILE,"w"))
+        matches = re.findall(r'(\d{7}).*?(\d{2}\-\d{2}).*?((?:\d{2}\s){6}\d{2})', html)
 
-# ===== 前区模型 =====
-def model_freq(history):
-    flat=[n for h in history for n in h["red"]]
-    freq=Counter(flat)
-    return sorted(freq, key=freq.get, reverse=True)
+        data=[]
+        for m in matches[:20]:
+            period=m[0]
+            date="2026-"+m[1]
+            nums=list(map(int,m[2].split()))
 
-def model_gap(history):
-    score={}
-    for i in range(1,36):
-        gap=0
-        for h in history[::-1]:
-            if i in h["red"]: break
-            gap+=1
-        score[i]=gap
-    return sorted(score, key=score.get, reverse=True)
+            data.append({
+                "period":period,
+                "date":date,
+                "red":nums[:5],
+                "blue":nums[5:]
+            })
 
-# ===== 蓝球模型（重点）=====
-def model_blue(history):
-    flat=[n for h in history for n in h["blue"]]
-    freq=Counter(flat)
-    ranked=sorted(freq, key=freq.get, reverse=True)
-    return sorted(random.sample(ranked[:6],2))
+        sources.append(data)
+    except:
+        pass
 
-# ===== 预测 =====
-def predict(history, model):
-    m1=model_freq(history)
-    m2=model_gap(history)
+    # ===== 数据校验（取一致数据）=====
+    if len(sources) >= 2:
+        for i in range(min(len(sources[0]), len(sources[1]))):
+            if sources[0][i]["red"] == sources[1][i]["red"]:
+                return sources[0][i]
 
-    score={}
-    for i in range(1,36):
-        score[i]=(
-            model["freq"]*(35-m1.index(i))+
-            model["gap"]*(35-m2.index(i))+
-            model["rand"]*random.random()*35
-        )
+    # ===== fallback =====
+    if sources:
+        return sources[0][0]
 
-    ranked=sorted(score, key=score.get, reverse=True)
+    return None
 
-    red=sorted(random.sample(ranked[:15],5))
-    blue=model_blue(history)
+# ===== 时间校验（是否最新）=====
+def is_latest_valid(data):
+    if not data:
+        return False
 
-    return {"red":red,"blue":blue}
+    today = datetime.now()
 
-# ===== 自学习 =====
-def update_model(model, history):
-    for k in model:
-        model[k]+=random.uniform(-0.02,0.02)
+    # 大乐透开奖日：周一/三/六
+    if today.weekday() not in [0,2,5]:
+        return True  # 非开奖日，当前数据就是最新
 
-    total=sum(model.values())
-    for k in model:
-        model[k]=round(model[k]/total,3)
+    # 简单校验日期是否<=今天
+    try:
+        draw_date = datetime.strptime(data["date"], "%Y-%m-%d")
+        return draw_date <= today
+    except:
+        return True
 
-    return model
+# ===== 安全获取（带缓存）=====
+def get_latest():
+    try:
+        data = fetch_latest_real()
+        if is_latest_valid(data):
+            json.dump(data, open(CACHE_FILE,"w"))
+            return data
+    except:
+        pass
 
-# ===== 锁定预测 =====
-def get_prediction(history, model):
-    if os.path.exists(PREDICT_FILE):
-        return json.load(open(PREDICT_FILE))
+    if os.path.exists(CACHE_FILE):
+        return json.load(open(CACHE_FILE))
 
-    pred=predict(history,model)
-    result={"red":pred["red"],"blue":pred["blue"],"hit":{"red":0,"blue":0}}
-    json.dump(result, open(PREDICT_FILE,"w"))
-    return result
-
-# ===== 命中计算 =====
-def check_hit(pred, real):
-    r=len(set(pred["red"]) & set(real["red"]))
-    b=len(set(pred["blue"]) & set(real["blue"]))
-    pred["hit"]={"red":r,"blue":b}
-    json.dump(pred, open(PREDICT_FILE,"w"))
-    return pred
+    return {
+        "period":"未知",
+        "date":"未知",
+        "red":[0,0,0,0,0],
+        "blue":[0,0]
+    }
 
 # ===== 首页 =====
 @app.route("/")
 def home():
-    history=fetch_history()
-    latest=history[0]
-
-    model=load_model()
-    model=update_model(model,history)
-    save_model(model)
-
-    pred=get_prediction(history,model)
-    pred=check_hit(pred,latest)
-
-    # 保存记录
-    if "username" in session:
-        conn=get_db();c=conn.cursor()
-        c.execute("INSERT INTO predictions(username,red_hit,blue_hit) VALUES (?,?,?)",
-                  (session["username"], pred["hit"]["red"], pred["hit"]["blue"]))
-        conn.commit()
+    latest = get_latest()
 
     return render_template("index.html",
         user=session.get("username"),
-        data={"latest":latest,"predict":pred}
+        data=latest
     )
 
-# ===== 排行榜 =====
-@app.route("/rank")
-def rank():
-    conn=get_db();c=conn.cursor()
-    c.execute("""
-    SELECT username, AVG(red_hit+blue_hit) as score, COUNT(*)
-    FROM predictions
-    GROUP BY username
-    ORDER BY score DESC
-    LIMIT 10
-    """)
-    rows=c.fetchall()
-    return render_template("rank.html", rows=rows)
-
-# ===== 登录注册 =====
-@app.route("/register", methods=["GET","POST"])
-def register():
-    if request.method=="POST":
-        u=request.form["username"]
-        p=request.form["password"]
-        conn=get_db();c=conn.cursor()
-        c.execute("INSERT INTO users(username,password) VALUES (?,?)",(u,p))
-        conn.commit()
-        return redirect("/login")
-    return render_template("register.html")
-
-@app.route("/login", methods=["GET","POST"])
-def login():
-    if request.method=="POST":
-        u=request.form["username"]
-        p=request.form["password"]
-        conn=get_db();c=conn.cursor()
-        c.execute("SELECT * FROM users WHERE username=? AND password=?",(u,p))
-        user=c.fetchone()
-        if user:
-            session["username"]=u
-            return redirect("/")
-    return render_template("login.html")
-
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect("/")
-    
+# ===== 启动 =====
 import os
 port=int(os.environ.get("PORT",10000))
 app.run(host="0.0.0.0",port=port)
