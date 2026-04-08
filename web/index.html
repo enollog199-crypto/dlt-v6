@@ -1,95 +1,103 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8"><title>Dextro AI - 深度智能控制台</title>
+    <meta charset="UTF-8"><title>Dextro AI V11 - 自主进化系统</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --bg: #050b18; --card: #0f172a; --accent: #38bdf8; --gold: #f59e0b; }
-        body { background: var(--bg); color: #f8fafc; font-family: 'Segoe UI', system-ui; margin: 0; }
-        .header { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); padding: 15px 30px; display: flex; justify-content: space-between; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #1e293b; }
-        .grid { max-width: 1200px; margin: 20px auto; display: grid; grid-template-columns: 2fr 1fr; gap: 20px; padding: 0 20px; }
-        .card { background: var(--card); border-radius: 16px; padding: 24px; border: 1px solid #1e293b; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-        .ball { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 10px; margin-right: 8px; font-weight: 800; font-size: 14px; background: #1e293b; transition: 0.3s; }
-        .red { color: #f87171; border: 1px solid #f87171; }
-        .blue { color: #60a5fa; border: 1px solid #60a5fa; }
-        .conf-bar { background: #1e293b; height: 6px; border-radius: 3px; margin-top: 10px; overflow: hidden; }
-        .conf-progress { background: var(--accent); height: 100%; transition: 1s ease-out; }
-        .btn-gold { background: var(--gold); color: #000; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        td { padding: 16px 8px; border-bottom: 1px solid #1e293b; font-size: 14px; }
+        :root { --bg: #030712; --panel: #111827; --cyan: #22d3ee; --rose: #f43f5e; }
+        body { background: var(--bg); color: #f3f4f6; font-family: 'Inter', sans-serif; margin: 0; }
+        .dashboard { display: grid; grid-template-columns: 300px 1fr 300px; gap: 20px; padding: 20px; height: 100vh; box-sizing: border-box; }
+        .panel { background: var(--panel); border-radius: 20px; border: 1px solid #1f2937; padding: 20px; overflow-y: auto; }
+        .ball { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; margin: 2px; font-weight: bold; font-size: 13px; }
+        .red-ball { background: rgba(244, 63, 94, 0.1); color: var(--rose); border: 1px solid var(--rose); }
+        .blue-ball { background: rgba(34, 211, 238, 0.1); color: var(--cyan); border: 1px solid var(--cyan); }
+        .stat-card { background: #1f2937; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
+        .confidence-ring { width: 80px; height: 80px; border-radius: 50%; border: 4px solid var(--cyan); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 900; box-shadow: 0 0 15px var(--cyan); }
+        .history-table { width: 100%; border-spacing: 0 8px; border-collapse: separate; }
+        .history-table td { padding: 12px; background: #111827; }
+        .history-table tr:first-child td { border-top: 1px solid var(--cyan); }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div style="font-size: 1.2rem; font-weight: 900; letter-spacing: 1px;">DEXTRO <span style="color:var(--accent)">AI V10</span></div>
-        <div style="display:flex; align-items:center; gap:20px;">
-            <div style="background:#1e293b; padding:5px 15px; border-radius:20px; font-size:14px;">🪙 余额: <b>{{ "%.0f"|format(credits) }}</b></div>
-            {% if can_checkin %}<form action="/checkin" method="post"><button class="btn-gold">每日签到</button></form>{% endif %}
-            <a href="/logout" style="color:#ef4444; text-decoration:none; font-size:13px;">安全退出</a>
+    <div class="dashboard">
+        <div class="panel">
+            <h2 style="color:var(--cyan)">SYSTEM</h2>
+            <div class="stat-card">
+                <small style="color:#9ca3af">自主预测模型</small>
+                <div style="font-size:1.1rem; font-weight:bold; margin-top:5px;">Evolutionary V11</div>
+            </div>
+            <div class="stat-card">
+                <small style="color:#9ca3af">账户可用金</small>
+                <div style="font-size:1.8rem; font-weight:bold; color:var(--cyan)">🪙 {{ "%.0f"|format(credits) }}</div>
+            </div>
+            <div class="stat-card" style="display:flex; justify-content:center; padding:30px 0;">
+                <div class="confidence-ring">{{ records[0].conf }}%</div>
+            </div>
+            <p style="font-size:11px; color:#6b7280; line-height:1.6;">系统正基于过去 20 期历史数据进行自主卷积运算。置信度根据模型收敛情况动态生成。</p>
+        </div>
+
+        <div class="panel">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h1 style="margin:0">决策中心</h1>
+                <span style="background:var(--rose); padding:4px 12px; border-radius:20px; font-size:12px; font-weight:bold;">第 {{ records[0].p }} 期预测</span>
+            </div>
+            
+            <div style="margin: 40px 0; text-align:center;">
+                <div style="margin-bottom:20px;">
+                    {% for n in records[0].r %}<span class="ball red-ball">{{ "%02d"|format(n) }}</span>{% endfor %}
+                    <span style="color:#374151; margin:0 15px; font-size:24px;">|</span>
+                    {% for n in records[0].b %}<span class="ball blue-ball">{{ "%02d"|format(n) }}</span>{% endfor %}
+                </div>
+                <div style="color:#6b7280; font-size:13px;">自主分析建议：本期概率偏向历史高遗漏区间，建议小量测试。</div>
+            </div>
+
+            <h3 style="border-left:4px solid var(--cyan); padding-left:10px; margin-top:50px;">历史分析回溯</h3>
+            <table class="history-table">
+                {% for r in records[1:] %}
+                <tr>
+                    <td><b>{{ r.p }}</b><br><small style="color:#6b7280">{{ r.d }}</small></td>
+                    <td>
+                        {% for n in r.r %}<span class="ball red-ball" style="width:22px;height:22px;font-size:9px;">{{n}}</span>{% endfor %}
+                        <span style="color:#374151">|</span>
+                        {% for n in r.b %}<span class="ball blue-ball" style="width:22px;height:22px;font-size:9px;">{{n}}</span>{% endfor %}
+                    </td>
+                    <td style="color:var(--cyan); font-weight:bold;">{{ r.hr }}+{{ r.hb }}</td>
+                    <td style="text-align:right;"><span style="color:{% if r.win > 0 %}#10b981{% else %}#6b7280{% endif %}">¥{{ r.win }}</span></td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+
+        <div class="panel">
+            <h3 style="margin-top:0">命中率趋势</h3>
+            <canvas id="evolveChart" height="200"></canvas>
+            
+            <h3 style="margin-top:40px">财富榜</h3>
+            {% for top in top_users %}
+            <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:14px; background:#1f2937; padding:10px; border-radius:8px;">
+                <span>{{ loop.index }}. {{ top[0] }}</span>
+                <span style="color:var(--cyan)">🪙 {{ "%.0f"|format(top[1]) }}</span>
+            </div>
+            {% endfor %}
         </div>
     </div>
 
-    <div class="grid">
-        <main>
-            <div class="card" style="border-top: 4px solid var(--accent);">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                    <h3 style="margin:0;">🔮 深度自回归预测 ({{ records[0].p }}期)</h3>
-                    <div style="text-align:right;">
-                        <span style="font-size:12px; color:#64748b;">模型置信度: {{ records[0].conf }}%</span>
-                        <div class="conf-bar" style="width:100px;"><div class="conf-progress" style="width:{{ records[0].conf }}%"></div></div>
-                    </div>
-                </div>
-                <div style="margin: 30px 0;">
-                    {% for n in records[0].r %}<span class="ball red">{{ "%02d"|format(n) }}</span>{% endfor %}
-                    <span style="margin: 0 10px; color:#334155;">|</span>
-                    {% for n in records[0].b %}<span class="ball blue">{{ "%02d"|format(n) }}</span>{% endfor %}
-                </div>
-                <div style="font-size:12px; color:#64748b;">引擎状态：<span style="color:#22c55e;">● 运算中</span> ({{ records[0].src }})</div>
-            </div>
-
-            <div class="card" style="margin-top:20px;">
-                <h3>📜 实战回归校验</h3>
-                <table>
-                    {% for r in records[1:] %}
-                    <tr>
-                        <td><b>{{ r.p }}</b><br><small style="color:#64748b">{{ r.d }}</small></td>
-                        <td>
-                            {% for n in r.r %}<span class="ball red" style="width:22px;height:22px;font-size:10px;">{{n}}</span>{% endfor %}
-                            {% for n in r.b %}<span class="ball blue" style="width:22px;height:22px;font-size:10px;">{{n}}</span>{% endfor %}
-                        </td>
-                        <td style="color:var(--accent); font-weight:bold;">{{ r.hr }}+{{ r.hb }}</td>
-                        <td style="color:#22c55e;">+{{ r.win }}</td>
-                    </tr>
-                    {% endfor %}
-                </table>
-            </div>
-        </main>
-
-        <aside>
-            <div class="card">
-                <h3 style="margin-top:0;">📈 预测偏离度趋势</h3>
-                <canvas id="mainChart"></canvas>
-            </div>
-            <div class="card" style="margin-top:20px;">
-                <h3 style="margin-top:0;">🏆 模拟盈利榜</h3>
-                {% for top in top_users %}
-                <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #1e293b;">
-                    <span>{{ loop.index }}. {{ top[0] }}</span>
-                    <span style="color:var(--gold);">🪙 {{ "%.0f"|format(top[1]) }}</span>
-                </div>
-                {% endfor %}
-            </div>
-        </aside>
-    </div>
-
     <script>
-        new Chart(document.getElementById('mainChart'), {
+        const ctx = document.getElementById('evolveChart').getContext('2d');
+        new Chart(ctx, {
             type: 'line',
             data: {
-                labels: {{ chart.labels|tojson }},
-                datasets: [{ label: '命中', data: {{ chart.hits|tojson }}, borderColor: '#38bdf8', tension: 0.4, fill: true, backgroundColor: 'rgba(56,189,248,0.1)' }]
+                labels: {{ [r[0] for r in records if r[4]!=-1][::-1]|tojson }},
+                datasets: [{
+                    label: '命中数',
+                    data: {{ [r[4]+r[5] for r in records if r[4]!=-1][::-1]|tojson }},
+                    borderColor: '#22d3ee',
+                    backgroundColor: 'rgba(34, 211, 238, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
             },
-            options: { plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 7, grid: { color: '#1e293b' } } } }
+            options: { plugins: { legend: { display: false } }, scales: { y: { min:0, max:7, grid: { color: '#374151' } } } }
         });
     </script>
 </body>
