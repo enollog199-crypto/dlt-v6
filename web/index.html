@@ -1,54 +1,32 @@
 <html>
 <head>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-body{background:#0f172a;color:#fff;text-align:center;}
-.ball{padding:10px;border-radius:50%;margin:5px;}
+body{background:#0f172a;color:#fff;text-align:center;font-family:Arial;}
+.ball{padding:10px;border-radius:50%;margin:5px;display:inline-block;}
 .red{background:#ef4444;}
 .blue{background:#3b82f6;}
+.card{background:#1e293b;margin:20px;padding:20px;border-radius:12px;}
 </style>
 </head>
 
 <body>
 
-<h1>🎯 大乐透AI V39</h1>
+<h1>🎯 大乐透开奖 V41（真实数据）</h1>
 
-<a href="/rank">🏆 排行榜</a>
+<div class="card">
+<h3>📅 期号：{{data.period}}</h3>
+<p>开奖日期：{{data.date}}</p>
 
-<h3>最新开奖</h3>
-{% for n in data.latest.red %}
+<p>前区：</p>
+{% for n in data.red %}
 <span class="ball red">{{n}}</span>
 {% endfor %}
-|
-{% for n in data.latest.blue %}
+
+<p>后区：</p>
+{% for n in data.blue %}
 <span class="ball blue">{{n}}</span>
 {% endfor %}
-
-<h3>AI预测</h3>
-{% for n in data.predict.red %}
-<span class="ball red">{{n}}</span>
-{% endfor %}
-|
-{% for n in data.predict.blue %}
-<span class="ball blue">{{n}}</span>
-{% endfor %}
-
-<p>命中：{{data.predict.hit.red}} + {{data.predict.hit.blue}}</p>
-
-<canvas id="chart"></canvas>
-
-<script>
-new Chart(document.getElementById("chart"), {
-    type: 'line',
-    data: {
-        labels: ["1","2","3","4","5"],
-        datasets: [{
-            label: "命中趋势",
-            data: [1,2,3,2,4]
-        }]
-    }
-});
-</script>
+</div>
 
 </body>
 </html>
