@@ -1,6 +1,6 @@
 flask
 requests
-beautifulsoup4
+werkzeug
+gunicorn
 numpy
 pandas
-gunicorn
