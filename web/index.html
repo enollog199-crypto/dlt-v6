@@ -1,1 +1,64 @@
+<html>
+<head>
+<title>大乐透 V37</title>
+<style>
+body{background:#020617;color:#fff;text-align:center;font-family:Arial;}
+.ball{display:inline-block;margin:5px;padding:10px;border-radius:50%;}
+.red{background:#ef4444;}
+.blue{background:#3b82f6;}
+.card{background:#1e293b;margin:20px;padding:20px;border-radius:10px;}
+</style>
+</head>
 
+<body>
+
+<h1>🎯 大乐透AI预测 V37</h1>
+
+{% if user %}
+<p>欢迎：{{user}} | <a href="/logout">退出</a></p>
+{% else %}
+<p><a href="/login">登录</a> | <a href="/register">注册</a></p>
+{% endif %}
+
+<div class="card">
+<h3>最新开奖（{{data.latest.period}}）</h3>
+<div>
+{% for n in data.latest.red %}
+<span class="ball red">{{n}}</span>
+{% endfor %}
+</div>
+<div>
+{% for n in data.latest.blue %}
+<span class="ball blue">{{n}}</span>
+{% endfor %}
+</div>
+</div>
+
+<div class="card">
+<h3>下期预测（{{data.predict.period}}）</h3>
+
+<div>
+前区：
+{% for n in data.predict.red %}
+<span class="ball red">{{n}}</span>
+{% endfor %}
+</div>
+
+<div>
+后区：
+{% for n in data.predict.blue %}
+<span class="ball blue">{{n}}</span>
+{% endfor %}
+</div>
+
+<p>命中：红 {{data.predict.hit.red}} / 蓝 {{data.predict.hit.blue}}</p>
+<p>方法：基础模型（后续可升级AI）</p>
+
+</div>
+
+<script>
+setTimeout(()=>location.reload(),8000);
+</script>
+
+</body>
+</html>
