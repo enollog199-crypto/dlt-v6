@@ -1,107 +1,175 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>大乐透 AI 分析系统</title>
+    <title>大乐透 AI 分析控制台</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --bg: #020617; --card: #0f172a; --cyan: #22d3ee; --pink: #f43f5e; }
-        body { background: var(--bg); color: white; font-family: system-ui; margin: 0; padding: 10px; }
-        .nav { max-width: 1200px; margin: 0 auto 10px; display: flex; justify-content: flex-end; gap: 15px; font-size: 12px; }
-        .nav a { color: #64748b; text-decoration: none; }
-        .nav a:hover { color: var(--cyan); }
-        .grid { display: grid; grid-template-columns: 1fr 340px; gap: 20px; max-width: 1200px; margin: auto; }
-        .card { background: var(--card); border: 1px solid #1e293b; border-radius: 16px; padding: 20px; margin-bottom: 20px; }
-        .ball { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; margin: 3px; font-weight: bold; border: 1px solid #334155; }
-        .red { color: var(--pink); border-color: var(--pink); }
-        .blue { color: var(--cyan); border-color: var(--cyan); }
-        .badge { background: rgba(34,211,238,0.1); color: var(--cyan); padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; border: 1px solid var(--cyan); }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        td { padding: 12px 5px; border-bottom: 1px solid #1e293b; }
-        .hit-tag { color: #10b981; font-weight: bold; }
-        @media (max-width: 850px) { .grid { grid-template-columns: 1fr; } }
+        :root { 
+            --bg: #0b0f1a; --card: rgba(30, 41, 59, 0.7); 
+            --cyan: #22d3ee; --pink: #f43f5e; --yellow: #facc15; 
+            --border: rgba(255, 255, 255, 0.1); 
+        }
+        body { 
+            background: radial-gradient(circle at top, #1e293b 0%, #0b0f1a 100%); 
+            color: #e2e8f0; font-family: 'Inter', system-ui; margin: 0; padding: 15px; min-height: 100vh;
+        }
+        .container { max-width: 1440px; margin: 0 auto; }
+        
+        /* 顶部状态栏 */
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .logo { font-size: 22px; font-weight: 800; background: linear-gradient(to right, var(--cyan), var(--pink)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .nav-links a { color: #94a3b8; text-decoration: none; font-size: 13px; margin-left: 20px; transition: 0.3s; }
+        .nav-links a:hover { color: var(--cyan); }
+
+        /* 网格布局 */
+        .dashboard { display: grid; grid-template-columns: 1fr 320px; gap: 20px; }
+        .card { 
+            background: var(--card); backdrop-filter: blur(10px); 
+            border: 1px solid var(--border); border-radius: 16px; 
+            padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        /* 预测球展示 */
+        .predict-box { text-align: center; margin-top: 10px; }
+        .ball-l { 
+            display: inline-flex; align-items: center; justify-content: center; 
+            width: 42px; height: 42px; border-radius: 10px; margin: 5px; 
+            font-weight: 800; font-size: 18px; border: 2px solid transparent;
+        }
+        .red-l { background: rgba(244,63,94,0.15); color: var(--pink); border-color: rgba(244,63,94,0.3); }
+        .blue-l { background: rgba(34,211,238,0.15); color: var(--cyan); border-color: rgba(34,211,238,0.3); }
+        
+        /* 走势图提升 */
+        .zs-wrapper { overflow-x: auto; margin-top: 20px; border-radius: 12px; border: 1px solid var(--border); }
+        .zs-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: center; }
+        .zs-table th { background: rgba(15, 23, 42, 0.9); padding: 10px; color: #94a3b8; border: 1px solid var(--border); }
+        .zs-table td { padding: 8px 2px; border: 1px solid var(--border); background: rgba(15, 23, 42, 0.4); }
+        .ball-s { width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 11px; font-weight: bold; }
+        .hit-red { background: linear-gradient(135deg, #f43f5e, #be123c); color: white; box-shadow: 0 0 10px rgba(244,63,94,0.4); }
+        .hit-blue { background: linear-gradient(135deg, #22d3ee, #0891b2); color: #020617; box-shadow: 0 0 10px rgba(34,211,238,0.4); }
+
+        /* 号码勾选交互 */
+        .interactive-cell { cursor: pointer; transition: 0.2s; }
+        .interactive-cell:hover { background: rgba(250, 204, 21, 0.1) !important; }
+        .is-selected { background: var(--yellow) !important; color: #000 !important; font-weight: 900; border-radius: 4px; }
+        
+        /* 侧边栏 */
+        .aside-title { font-size: 14px; color: #94a3b8; margin-bottom: 15px; display: flex; justify-content: space-between; }
+        .rank-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px; }
+
+        @media (max-width: 1000px) { .dashboard { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
 
-<div class="nav">
-    <a href="/rank">🏆 排行榜</a>
-    {% if logged_in %}
-        <span style="color:#334155;">|</span>
-        <a href="/logout" style="color:var(--pink);">退出管理</a>
-    {% else %}
-        <span style="color:#334155;">|</span>
-        <a href="/login">管理员登录</a>
-    {% endif %}
-</div>
-
-<div class="grid">
-    <main>
-        <div class="card" style="border-top: 4px solid var(--cyan);">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h2 style="margin:0; font-size: 18px;">🎯 下期 AI 分析: {{records[0].period}}</h2>
-                <span class="badge">置信度: {{records[0].conf}}%</span>
-            </div>
-            <div style="margin: 30px 0; text-align: center;">
-                {% for n in records[0].red %}<span class="ball red">{{ "%02d"|format(n) }}</span>{% endfor %}
-                <span style="color:#334155; margin:0 10px;">|</span>
-                {% for n in records[0].blue %}<span class="ball blue">{{ "%02d"|format(n) }}</span>{% endfor %}
-            </div>
-            <p style="color:#64748b; font-size:12px;">模型解释: <span style="color:var(--cyan)">{{records[0].exp}}</span></p>
+<div class="container">
+    <header>
+        <div class="logo">DEXTRO AI ANALYSIS</div>
+        <div class="nav-links">
+            <a href="/rank">荣誉榜</a>
+            {% if logged_in %}
+                <a href="/logout" style="color:var(--pink)">退出管理</a>
+            {% else %}
+                <a href="/login">管理登录</a>
+            {% endif %}
         </div>
+    </header>
 
-        <div class="card">
-            <h3 style="margin:0 0 15px 0;">📈 命中走势</h3>
-            <canvas id="hitChart" height="100"></canvas>
-        </div>
+    <div class="dashboard">
+        <main>
+            <div class="card" style="border-top: 2px solid var(--cyan);">
+                <div style="display:flex; justify-content:space-between;">
+                    <span style="color:#94a3b8; font-size:14px;">下期预判 · {{records[0].period}}</span>
+                    <span style="color:var(--cyan); font-weight:bold;">置信度 {{records[0].conf}}%</span>
+                </div>
+                <div class="predict-box">
+                    {% for n in records[0].red %}<span class="ball-l red-l">{{ "%02d"|format(n) }}</span>{% endfor %}
+                    <span style="color:var(--border); margin:0 15px; font-size:24px;">/</span>
+                    {% for n in records[0].blue %}<span class="ball-l blue-l">{{ "%02d"|format(n) }}</span>{% endfor %}
+                </div>
+                <div style="margin-top:15px; font-size:12px; color:#64748b; text-align:center;">
+                    AI 逻辑：<span style="color:#e2e8f0">{{records[0].exp}}</span>
+                </div>
+            </div>
 
-        <div class="card">
-            <h3 style="margin:0 0 15px 0;">📜 历史预测审计</h3>
-            <table>
-                {% for r in records[1:] %}
-                <tr>
-                    <td><b>{{r.period}}</b></td>
-                    <td>
-                        {% for n in r.red %}<span style="color:var(--pink); margin-right:4px;">{{n}}</span>{% endfor %}
-                        <span style="color:#334155">|</span>
-                        {% for n in r.blue %}<span style="color:var(--cyan); margin-left:4px;">{{n}}</span>{% endfor %}
-                    </td>
-                    <td><span class="{% if r.hit != '0+0' %}hit-tag{% endif %}">{{r.hit}}</span></td>
-                </tr>
+            <div class="card" style="margin-top:20px;">
+                <div class="aside-title"><span>📊 专业走势矩阵 (点击下方高亮行可手动模拟)</span></div>
+                <div class="zs-wrapper">
+                    <table class="zs-table">
+                        <thead>
+                            <tr>
+                                <th>期号</th>
+                                {% for i in range(1, 36) %}<th style="color:var(--pink)">{{i}}</th>{% endfor %}
+                                {% for i in range(1, 13) %}<th style="color:var(--cyan)">{{i}}</th>{% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in records[1:11] %}
+                            <tr>
+                                <td style="color:#64748b; font-weight:bold;">{{r.period}}</td>
+                                {% for i in range(1, 36) %}
+                                    <td>{% if i in r.red %}<span class="ball-s hit-red">{{i}}</span>{% endif %}</td>
+                                {% endfor %}
+                                {% for i in range(1, 13) %}
+                                    <td>{% if i in r.blue %}<span class="ball-s hit-blue">{{i}}</span>{% endif %}</td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                            <tr style="background: rgba(34, 211, 238, 0.05);">
+                                <td style="color:var(--yellow); font-weight:bold;">模拟</td>
+                                {% for i in range(1, 36) %}
+                                    <td class="interactive-cell" onclick="this.classList.toggle('is-selected')"></td>
+                                {% endfor %}
+                                {% for i in range(1, 13) %}
+                                    <td class="interactive-cell" onclick="this.classList.toggle('is-selected')" style="border-left: 2px solid var(--border)"></td>
+                                {% endfor %}
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <aside>
+            <div class="card">
+                <div class="aside-title"><span>🔥 热度权值排名</span></div>
+                {% for n,v in top_numbers %}
+                <div class="rank-item">
+                    <span class="ball-s hit-red" style="width:20px;height:20px;">{{n}}</span>
+                    <div style="flex:1; margin-left:15px; height:4px; background:rgba(255,255,255,0.05); border-radius:2px; position:relative;">
+                        <div style="position:absolute; left:0; top:0; height:100%; background:var(--cyan); width:{{v*10}}%; border-radius:2px;"></div>
+                    </div>
+                    <span style="margin-left:15px; font-family:monospace; font-size:12px; color:var(--cyan);">{{v}}</span>
+                </div>
                 {% endfor %}
-            </table>
-        </div>
-    </main>
-
-    <aside>
-        <div class="card">
-            <h3 style="margin:0 0 15px 0;">🔥 激活强度 Top 10</h3>
-            {% for n,v in top_numbers %}
-            <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:14px;">
-                <span><span class="ball red" style="width:22px;height:22px;font-size:10px;">{{n}}</span></span>
-                <span style="color:var(--cyan); font-weight:bold;">{{v}}</span>
             </div>
-            {% endfor %}
-        </div>
-    </aside>
+
+            <div class="card" style="margin-top:20px;">
+                <div class="aside-title"><span>📈 趋势平滑曲线</span></div>
+                <canvas id="sideChart" height="200"></canvas>
+            </div>
+        </aside>
+    </div>
 </div>
 
 <script>
-new Chart(document.getElementById("hitChart"), {
+new Chart(document.getElementById("sideChart"), {
     type:"line",
     data:{
         labels:{{chart_data.labels|tojson}},
         datasets:[{
             data:{{chart_data.values|tojson}},
             borderColor:'#22d3ee',
-            tension:0.4,
+            backgroundColor:'rgba(34,211,238,0.1)',
             fill: true,
-            backgroundColor: 'rgba(34,211,238,0.05)',
-            borderWidth: 2
+            tension:0.4,
+            borderWidth: 2,
+            pointRadius: 0
         }]
     },
-    options: { plugins:{legend:{display:false}}, scales:{y:{min:0, max:7, grid:{color:'#1e293b'}}, x:{grid:{display:false}}}}
+    options: { plugins:{legend:{display:false}}, scales:{y:{display:false}, x:{display:false}}}
 });
 </script>
 </body>
