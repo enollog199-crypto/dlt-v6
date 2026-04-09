@@ -3,15 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DEXTRO AI | 进化式预测终端</title>
+    <title>DEXTRO AI | 进化终端 V18.3</title>
     <style>
         :root { --bg: #020617; --card: #1e293b; --cyan: #22d3ee; }
-        body { background: var(--bg); color: #f8fafc; font-family: system-ui, sans-serif; margin: 0; padding: 12px; padding-bottom: 80px; }
+        body { background: var(--bg); color: #f8fafc; font-family: system-ui, sans-serif; margin: 0; padding: 12px; padding-bottom: 100px; }
         .container { max-width: 1000px; margin: 0 auto; }
         .status-bar { display: flex; justify-content: space-between; background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 15px; border-bottom: 2px solid var(--cyan); }
-        /* 允许4组卡片排列 */
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
-        .card { background: var(--card); padding: 18px; border-radius: 16px; border: 1px solid #334155; position: relative; overflow: hidden; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+        .card { background: var(--card); padding: 18px; border-radius: 16px; border: 1px solid #334155; }
         .ball { width: 30px; height: 30px; line-height: 30px; text-align: center; border-radius: 50%; font-weight: 800; display: inline-block; margin-right: 3px; font-size: 13px; }
         .red { background: #f43f5e; color: white; }
         .blue { background: #0891b2; color: white; }
@@ -19,19 +18,22 @@
         table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 600px; }
         th, td { border: 1px solid #e2e8f0; padding: 6px 2px; text-align: center; }
         .hit { background: #f43f5e; color: white; border-radius: 50%; width: 18px; height: 18px; display: inline-block; line-height: 18px; }
-        #feed-panel { position: fixed; bottom: 0; left: 0; right: 0; background: #0f172a; border-top: 2px solid var(--cyan); padding: 15px; display: none; z-index: 1000; }
-        textarea { width: 100%; height: 80px; background: #1e293b; color: white; border: 1px solid #334155; padding: 10px; border-radius: 5px; box-sizing: border-box; }
-        .btn { background: var(--cyan); color: #020617; border: none; padding: 12px; width: 100%; border-radius: 5px; font-weight: bold; margin-top: 10px; cursor: pointer; }
+        #feed-panel { position: fixed; bottom: 0; left: 0; right: 0; background: #0f172a; border-top: 3px solid var(--cyan); padding: 20px; z-index: 1000; }
+        textarea { width: 100%; height: 100px; background: #1e293b; color: white; border: 1px solid #334155; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .btn { background: var(--cyan); color: #020617; border: none; padding: 12px; width: 100%; border-radius: 5px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 <div class="container">
-    {% if history %}
     <div class="status-bar">
         <div><div id="clock" style="font-size: 20px; font-weight: bold; color: var(--cyan);">--:--:--</div></div>
-        <div style="text-align: right;"><div style="font-size: 18px; font-weight: bold;">第 {{ last.p }} 期</div><div style="font-size: 11px; color: #94a3b8;">录入日期: {{ last.date }}</div></div>
+        <div style="text-align: right;">
+            <div style="font-size: 18px; font-weight: bold;">第 {{ last.p }} 期</div>
+            <div style="font-size: 11px; color: #94a3b8;">{{ last.date }}</div>
+        </div>
     </div>
 
+    {% if history %}
     <div class="grid">
         {% for p in preds %}
         <div class="card" style="border-top: 4px solid {{p.color}}">
@@ -47,40 +49,36 @@
     </div>
 
     <div class="matrix-wrap">
-        <h3 style="margin:0 0 10px 0; font-size:14px;">数据引擎走势矩阵 (最新 10 期)</h3>
+        <h3 style="margin:0 0 10px 0; font-size:14px;">已激活：AI 走势矩阵</h3>
         <table>
             <thead><tr style="background:#f1f5f9;"><th>期号</th>{% for i in range(1, 36) %}<th>{{ i }}</th>{% endfor %}</tr></thead>
             <tbody>
                 <tr style="background:#fffbe6; font-weight:bold;"><td>遗漏</td>{% for i in range(1, 36) %}<td>{{ r_omission.get(str(i), '-') }}</td>{% endfor %}</tr>
-                {% for h in history[:10] %}
+                {% for h in history[:15] %}
                 <tr><td>{{ h.p }}</td>{% for i in range(1, 36) %}<td>{% if i in h.r %}<span class="hit">{{ i }}</span>{% else %}.{% endif %}</td>{% endfor %}</tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
     {% else %}
-    <div style="text-align: center; padding: 100px 20px;">
-        <h2 style="color: var(--cyan);">🚀 系统待命中</h2>
-        <p>请投喂最新开奖数据以激活 AI 计算引擎</p>
-        <button onclick="document.getElementById('feed-panel').style.display='block'" class="btn" style="width: auto; padding: 10px 40px;">立即投喂</button>
+    <div style="text-align:center; padding: 50px 0; border: 2px dashed #334155; border-radius: 20px;">
+        <h2 style="color:var(--cyan)">🚀 引擎就绪，等待投喂</h2>
+        <p style="color:#94a3b8">请在下方输入框完成首次数据同步</p>
     </div>
     {% endif %}
-
-    <div style="text-align: center; margin-top: 40px;">
-        <button onclick="document.getElementById('feed-panel').style.display='block'" style="background:none; border:1px solid #334155; color:#475569; padding:5px 15px; border-radius:20px; font-size:11px; cursor:pointer;">
-            点击唤醒投喂面板
-        </button>
-    </div>
 </div>
 
 <div id="feed-panel">
     <form action="/feed" method="post">
-        <input type="password" name="pw" placeholder="暗号: 8888" style="width:100%; margin-bottom:8px; background:#1e293b; color:white; border:1px solid #334155; padding:8px; border-radius:5px;">
-        <textarea name="content" placeholder="粘贴格式: 26037 2026-04-08 07 12 13 28 32 06 08"></textarea>
-        <button type="submit" class="btn">喂入数据并启动计算</button>
-        <button type="button" onclick="document.getElementById('feed-panel').style.display='none'" style="width:100%; background:none; color:white; border:none; margin-top:5px; font-size:12px;">取消</button>
+        <div style="display:flex; gap:10px;">
+            <input type="password" name="pw" placeholder="投喂暗号 (8888)" style="flex:1; background:#1e293b; color:white; border:1px solid #334155; padding:8px; border-radius:5px;">
+            <button type="button" onclick="this.parentElement.parentElement.reset()" style="background:none; color:#64748b; border:none; font-size:12px;">清空</button>
+        </div>
+        <textarea name="content" placeholder="直接粘贴截图里的内容，例如：&#10;26037 2026/4/8 7 12 13 28 32 6 8"></textarea>
+        <button type="submit" class="btn">识别并激活 AI 推测</button>
     </form>
 </div>
+
 <script>
     function updateTime() {
         const now = new Date();
