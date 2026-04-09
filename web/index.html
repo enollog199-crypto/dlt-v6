@@ -2,81 +2,109 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <title>DEXTRO AI | 终端 V13</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DEXTRO AI | 决策终端 V14</title>
     <style>
-        :root { --bg: #050810; --card: #111b2d; --cyan: #22d3ee; --pink: #f43f5e; }
-        body { background: var(--bg); color: #e2e8f0; font-family: 'Inter', sans-serif; margin: 0; padding: 15px; }
+        :root { --bg: #020617; --card: #0f172a; --cyan: #22d3ee; --pink: #f43f5e; --slate: #94a3b8; }
+        body { background: var(--bg); color: #f1f5f9; font-family: 'Inter', system-ui, sans-serif; margin: 0; padding: 15px; }
         .container { max-width: 1100px; margin: 0 auto; }
-        .header { display: flex; justify-content: space-between; background: var(--card); padding: 18px; border-radius: 12px; border: 1px solid #1e293b; margin-bottom: 20px; }
+        
+        /* 状态栏 */
+        .status-bar { display: flex; justify-content: space-between; align-items: center; background: var(--card); padding: 15px 20px; border-radius: 12px; border: 1px solid #1e293b; margin-bottom: 20px; }
         #clock { font-family: monospace; font-size: 22px; color: var(--cyan); font-weight: bold; }
-        .ai-panel { background: linear-gradient(145deg, #111b2d, #0a0f1a); padding: 25px; border-radius: 16px; border: 1px solid rgba(34,211,238,0.2); margin-bottom: 25px; }
-        .ball { display: inline-flex; width: 42px; height: 42px; border-radius: 50%; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; margin-right: 10px; }
-        .r-b { background: var(--pink); color: #fff; box-shadow: 0 0 15px rgba(244,63,94,0.3); }
-        .b-b { background: #3b82f6; color: #fff; box-shadow: 0 0 15px rgba(59,130,246,0.3); }
-        .prob-item { background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #1e293b; }
-        .matrix-w { background: #fff; color: #000; padding: 20px; border-radius: 12px; overflow-x: auto; }
+
+        /* 避热预警 */
+        .alert-box { background: rgba(244, 63, 94, 0.1); border-left: 4px solid var(--pink); padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .mini-ball { display: inline-block; background: #1e293b; color: var(--pink); border: 1px solid var(--pink); border-radius: 4px; padding: 2px 6px; margin: 0 3px; font-weight: bold; font-family: monospace; }
+
+        /* AI 预测区 */
+        .ai-section { background: linear-gradient(145deg, #1e293b, #0f172a); border-radius: 16px; padding: 25px; border: 1px solid rgba(34, 211, 238, 0.3); box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-bottom: 25px; }
+        .ball-group { display: flex; align-items: center; gap: 10px; margin: 20px 0; }
+        .ball { width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; }
+        .red { background: var(--pink); color: #fff; box-shadow: 0 0 15px rgba(244, 63, 94, 0.4); }
+        .blue { background: #3b82f6; color: #fff; box-shadow: 0 0 15px rgba(59, 130, 246, 0.4); }
+
+        /* 概率网格 */
+        .prob-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 10px; }
+        .prob-card { background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #1e293b; }
+
+        /* 数据矩阵 */
+        .matrix-box { background: #fff; color: #000; padding: 20px; border-radius: 12px; overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; font-size: 11px; text-align: center; }
         th, td { border: 1px solid #e2e8f0; padding: 6px 2px; }
-        .hit { background: var(--pink); color: #fff; border-radius: 4px; padding: 2px 4px; }
-        .avoid-box { background: rgba(244,63,94,0.1); border: 1px solid var(--pink); padding: 10px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; }
+        .hit { background: var(--pink); color: #fff; border-radius: 4px; font-weight: bold; padding: 2px 4px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="header">
+    <div class="status-bar">
         <div>
-            <div style="font-size: 11px; color: #64748b;">DATA SYNC ACTIVE</div>
+            <div style="font-size: 10px; color: var(--slate);">SYSTEM CLOCK (BEIJING)</div>
             <div id="clock">00:00:00</div>
         </div>
         <div style="text-align: right;">
-            <div style="font-weight: bold; font-size: 16px;">{{ last.p }} 期数据已对齐</div>
-            <div style="font-size: 12px; color: #64748b;">{{ last.date }}</div>
+            <div style="font-weight: bold;">第 {{ last.p }} 期同步完成</div>
+            <div style="font-size: 12px; color: var(--slate);">开奖日: {{ last.date }}</div>
         </div>
     </div>
 
-    <div class="avoid-box">
-        <strong style="color:var(--pink)">🔥 事实避热池 (本期算法已自动下调权重):</strong> 
-        {% for n in hot_red %}{{ "%02d"|format(n) }} {% endfor %}
+    <div class="alert-box">
+        <span style="color: var(--pink); font-weight: bold;">🚫 事实避热池：</span>
+        <span style="font-size: 13px; color: var(--slate);">以下高频号已在本期算法中强制降低权重：</span>
+        <div style="margin-top: 8px;">
+            {% for n in hot_red %}
+                <span class="mini-ball">{{ "%02d"|format(n) }}</span>
+            {% endfor %}
+        </div>
     </div>
 
-    <div class="ai-panel">
-        <h3 style="margin-top:0; color:var(--cyan)">🧠 随机森林 AI 推理结果</h3>
-        <div style="display:flex; align-items:center; margin: 20px 0;">
-            {% for n in reds %}<div class="ball r-b">{{ "%02d"|format(n) }}</div>{% endfor %}
-            <div style="width:2px; height:30px; background:#1e293b; margin:0 15px;"></div>
-            {% for n in blues %}<div class="ball b-b">{{ "%02d"|format(n) }}</div>{% endfor %}
+    <div class="ai-section">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="margin:0; color: var(--cyan); letter-spacing: 1px;">🧠 AI RANDOM FOREST PREDICTION</h2>
+            <span style="font-size: 12px; color: var(--slate);">V14.2 加固版</span>
         </div>
-        
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px;">
+
+        <div class="ball-group">
+            {% for n in reds %}
+                <div class="ball red">{{ "%02d"|format(n) }}</div>
+            {% endfor %}
+            <div style="width: 2px; height: 35px; background: #334155; margin: 0 10px;"></div>
+            {% for n in blues %}
+                <div class="ball blue">{{ "%02d"|format(n) }}</div>
+            {% endfor %}
+        </div>
+
+        <div style="margin-bottom: 10px; font-size: 13px; color: var(--slate);">AI 算力分布 (前 10 权重号码)：</div>
+        <div class="prob-grid">
             {% for k, v in probs[:10] %}
-            <div class="prob-item">
-                <div style="font-size:10px; color:#64748b;">号:{{k}}</div>
-                <div style="font-weight:bold; color:var(--cyan);">{{v}}%</div>
+            <div class="prob-card">
+                <div style="font-size: 11px; color: var(--slate);">号码 {{ "%02d"|format(k|int) }}</div>
+                <div style="font-weight: bold; color: var(--cyan); margin-top: 4px;">{{ v }}%</div>
             </div>
             {% endfor %}
         </div>
     </div>
 
-    <div class="matrix-w">
-        <h3 style="margin: 0 0 15px 0;">5+2 分布走势走势矩阵</h3>
+    <div class="matrix-box">
+        <h3 style="margin: 0 0 15px 0;">历史遗漏走势矩阵 (5+2)</h3>
         <table>
             <thead>
-                <tr style="background:#f8fafc;">
+                <tr style="background: #f8fafc;">
                     <th>期号</th>
-                    {% for i in range(1,36) %}<th>{{i}}</th>{% endfor %}
+                    {% for i in range(1, 36) %}<th>{{ i }}</th>{% endfor %}
                 </tr>
             </thead>
             <tbody>
-                <tr style="background:#fffbe6; font-weight:bold;">
-                    <td>遗漏</td>
-                    {% for i in range(1,36) %}<td>{{ r_omission[i] }}</td>{% endfor %}
+                <tr style="background: #fffbe6; font-weight: bold;">
+                    <td style="color: #9a3412;">当前遗漏</td>
+                    {% for i in range(1, 36) %}<td>{{ r_omission[i] }}</td>{% endfor %}
                 </tr>
                 {% for h in history[:15] %}
                 <tr>
-                    <td style="background:#f8fafc; font-family:monospace;">{{ h.p }}</td>
-                    {% for i in range(1,36) %}
-                    <td>{% if i in h.r %}<span class="hit">{{i}}</span>{% else %}.{% endif %}</td>
+                    <td style="font-family: monospace; color: #64748b;">{{ h.p }}</td>
+                    {% for i in range(1, 36) %}
+                        <td>{% if i in h.r %}<span class="hit">{{ i }}</span>{% else %}.{% endif %}</td>
                     {% endfor %}
                 </tr>
                 {% endfor %}
