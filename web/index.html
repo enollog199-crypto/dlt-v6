@@ -2,40 +2,41 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <title>DEXTRO AI | 全球数据同步终端</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DEXTRO AI | 量子决策终端</title>
     <style>
-        :root { --bg: #030712; --card: rgba(17, 24, 39, 0.95); --cyan: #22d3ee; --pink: #f43f5e; --amber: #f59e0b; --border: rgba(255, 255, 255, 0.1); }
-        body { background: #0b0f1a; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto; margin: 0; padding: 15px; padding-bottom: 120px; }
+        :root { --bg: #030712; --card: rgba(17, 24, 39, 0.95); --cyan: #22d3ee; --pink: #f43f5e; --amber: #f59e0b; --border: rgba(255,255,255,0.08); }
+        body { background: #070b14; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; margin: 0; padding: 15px; padding-bottom: 120px; }
         .container { max-width: 1400px; margin: 0 auto; }
         
-        /* 顶部状态栏 */
-        .status-header { display: flex; justify-content: space-between; align-items: center; background: var(--card); padding: 15px 25px; border-radius: 15px; border: 1px solid var(--cyan); margin-bottom: 20px; }
-        .ball { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin: 0 3px; font-weight: bold; font-size: 13px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        /* 状态头 */
+        .status-header { display: flex; justify-content: space-between; align-items: center; background: var(--card); padding: 20px; border-radius: 16px; border: 1px solid var(--border); margin-bottom: 20px; backdrop-filter: blur(10px); }
+        .ball { width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin: 0 4px; font-weight: 800; font-size: 14px; box-shadow: 0 5px 15px rgba(0,0,0,0.4); }
         
-        /* 预测区域 */
-        .prediction-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-bottom: 25px; }
-        .p-card { background: var(--card); padding: 18px; border-radius: 12px; border-top: 4px solid #fff; transition: 0.3s; }
-        .p-card:hover { transform: translateY(-5px); background: #111827; }
-        .p-ball { width: 32px; height: 32px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; margin: 3px; font-weight: 800; border: 1px solid rgba(255,255,255,0.05); }
+        /* 预测卡片 */
+        .prediction-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .p-card { background: var(--card); padding: 20px; border-radius: 16px; border: 1px solid var(--border); transition: 0.3s; position: relative; overflow: hidden; }
+        .p-card:hover { transform: translateY(-5px); border-color: var(--cyan); }
+        .p-ball { width: 36px; height: 36px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; margin: 4px; font-weight: 900; background: rgba(255,255,255,0.03); border: 1px solid var(--border); }
 
-        /* 走势矩阵 - 深度适配 78500 风格 */
-        .matrix-container { background: #fff; color: #334155; border-radius: 12px; padding: 15px; overflow-x: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.4); margin-bottom: 30px; }
-        .zst-table { border-collapse: collapse; width: 100%; font-size: 12px; text-align: center; }
-        .zst-table th { background: #f8fafc; padding: 8px; border: 1px solid #e2e8f0; color: #64748b; }
-        .zst-table td { border: 1px solid #f1f5f9; padding: 5px 0; }
-        .r-active { background: #ff4d4f; color: #fff; border-radius: 50%; width: 20px; height: 20px; margin: 0 auto; line-height: 20px; font-weight: bold; }
-        .b-active { background: #1890ff; color: #fff; border-radius: 50%; width: 20px; height: 20px; margin: 0 auto; line-height: 20px; font-weight: bold; }
+        /* 走势表格 */
+        .matrix-container { background: #fff; border-radius: 16px; padding: 20px; overflow-x: auto; margin-bottom: 30px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+        .zst-table { border-collapse: collapse; width: 100%; font-size: 12px; text-align: center; color: #1e293b; }
+        .zst-table th { background: #f8fafc; padding: 12px 5px; border: 1px solid #e2e8f0; font-weight: 900; }
+        .zst-table td { border: 1px solid #f1f5f9; padding: 4px 0; }
+        .r-active { background: #ff4d4f; color: #fff; border-radius: 50%; width: 22px; height: 22px; margin: 0 auto; line-height: 22px; font-weight: bold; box-shadow: 0 2px 5px rgba(255,77,79,0.4); }
+        .b-active { background: #1890ff; color: #fff; border-radius: 50%; width: 22px; height: 22px; margin: 0 auto; line-height: 22px; font-weight: bold; box-shadow: 0 2px 5px rgba(24,144,255,0.4); }
 
-        /* 底部模拟选号器 */
-        .selector-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #1e293b; padding: 20px; border-top: 3px solid var(--cyan); display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; z-index: 1000; box-shadow: 0 -10px 30px rgba(0,0,0,0.5); }
-        .s-ball { width: 34px; height: 34px; border: 1px solid #475569; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; font-size: 14px; color: #94a3b8; }
-        .s-ball:hover { border-color: var(--cyan); color: #fff; }
+        /* 权值进度条 */
+        .weight-item { display: flex; align-items: center; margin-bottom: 12px; font-size: 13px; }
+        .progress-bg { flex: 1; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; margin: 0 15px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--cyan), #3b82f6); border-radius: 3px; }
+
+        /* 底部模拟器 */
+        .selector-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #0f172a; padding: 20px; border-top: 2px solid var(--cyan); display: flex; align-items: center; justify-content: center; gap: 8px; z-index: 1000; box-shadow: 0 -10px 30px rgba(0,0,0,0.5); }
+        .s-ball { width: 34px; height: 34px; border-radius: 50%; border: 1px solid #334155; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; color: #64748b; font-size: 14px; }
         .active-r { background: #ef4444 !important; color: #fff !important; border-color: #ef4444 !important; box-shadow: 0 0 15px rgba(239,68,68,0.5); }
         .active-b { background: #3b82f6 !important; color: #fff !important; border-color: #3b82f6 !important; box-shadow: 0 0 15px rgba(59,130,246,0.5); }
-
-        .side-info { display: grid; grid-template-columns: 1fr 350px; gap: 20px; }
-        .weight-bar { background: rgba(255,255,255,0.03); height: 6px; border-radius: 3px; flex: 1; margin: 0 10px; overflow: hidden; }
-        .weight-fill { background: var(--cyan); height: 100%; border-radius: 3px; }
     </style>
 </head>
 <body>
@@ -43,24 +44,24 @@
 <div class="container">
     <div class="status-header">
         <div>
-            <div style="font-size:12px; color:var(--cyan); margin-bottom:5px;">● GLOBAL SYNC ACTIVE | 数据源：多维校验</div>
-            <div style="font-weight:bold; font-size:18px;">第 {{ last_period.p }} 期结果</div>
+            <div style="color:var(--cyan); font-size:12px; font-weight:bold; letter-spacing: 1px;">QUANTUM ENGINE V8 ACTIVE</div>
+            <div style="font-size:22px; font-weight:900; margin-top:5px;">第 {{ last_period.p }} 期数据已同步</div>
         </div>
         <div>
             {% for n in last_period.r %}<span class="ball" style="background:#ff4d4f; color:#fff;">{{ "%02d"|format(n) }}</span>{% endfor %}
-            <span style="color:#444; margin:0 5px;">+</span>
+            <span style="color:#334155; margin:0 10px; font-weight:bold;">+</span>
             {% for n in last_period.b %}<span class="ball" style="background:#1890ff; color:#fff;">{{ "%02d"|format(n) }}</span>{% endfor %}
         </div>
     </div>
 
     <div class="prediction-grid">
         {% for p in preds %}
-        <div class="p-card" style="border-top-color: {{p.c}}">
+        <div class="p-card" style="border-top: 4px solid {{p.c}}">
             <div style="color:{{p.c}}; font-size:14px; font-weight:bold;">{{ p.n }}</div>
             <div style="font-size:11px; color:#64748b; margin-bottom:15px;">{{ p.d }}</div>
-            <div>
+            <div style="display:flex; flex-wrap:wrap;">
                 {% for n in p.r %}<span class="p-ball" style="color:var(--pink)">{{ "%02d"|format(n) }}</span>{% endfor %}
-                <span style="color:#333; margin:0 5px;">|</span>
+                <span style="color:#1e293b; margin:0 5px; line-height:45px;">|</span>
                 {% for n in p.b %}<span class="p-ball" style="color:var(--cyan)">{{ "%02d"|format(n) }}</span>{% endfor %}
             </div>
         </div>
@@ -68,24 +69,21 @@
     </div>
 
     <div class="matrix-container">
-        <div style="font-weight:bold; margin-bottom:15px; color:#1e293b; display:flex; justify-content:space-between;">
-            <span>近 50 期特征分布矩阵</span>
-            <span style="font-size:12px; color:#94a3b8;">从旧 → 新排列</span>
-        </div>
+        <div style="color:#1e293b; font-weight:bold; margin-bottom:15px;">近 50 期 5+2 分布走势矩阵</div>
         <table class="zst-table">
             <thead>
                 <tr>
-                    <th rowspan="2">期号</th><th colspan="35">前区走势</th><th colspan="12">后区走势</th>
+                    <th rowspan="2">期号</th><th colspan="35">前区红球分布</th><th colspan="12">后区蓝球</th>
                 </tr>
                 <tr>
-                    {% for i in range(1,36) %}<th><small>{{i}}</small></th>{% endfor %}
-                    {% for i in range(1,13) %}<th><small>{{i}}</small></th>{% endfor %}
+                    {% for i in range(1,36) %}<th>{{i}}</th>{% endfor %}
+                    {% for i in range(1,13) %}<th>{{i}}</th>{% endfor %}
                 </tr>
             </thead>
             <tbody>
                 {% for r in history %}
                 <tr>
-                    <td style="background:#f8fafc; font-family:monospace;">{{ r.p }}</td>
+                    <td style="background:#f1f5f9; font-family:monospace;">{{ r.p }}</td>
                     {% for i in range(1,36) %}<td>{% if i in r.r %}<div class="r-active">{{i}}</div>{% endif %}</td>{% endfor %}
                     {% for i in range(1,13) %}<td>{% if i in r.b %}<div class="b-active">{{i}}</div>{% endif %}</td>{% endfor %}
                 </tr>
@@ -94,36 +92,32 @@
         </table>
     </div>
 
-    <div class="side-info">
-        <div class="card" style="background:var(--card); padding:20px; border-radius:15px; border:1px solid var(--border);">
-            <div style="color:var(--cyan); margin-bottom:20px;">⚡ 实时号码权值 Top 10</div>
+    <div style="display:grid; grid-template-columns: 1fr 380px; gap:20px;">
+        <div class="p-card">
+            <div style="color:var(--cyan); margin-bottom:20px; font-weight:bold;">⚡ 实时计算权值 Top 10 (前区)</div>
             {% for n, v in top_nums %}
-            <div style="display:flex; align-items:center; margin-bottom:10px; font-size:13px;">
+            <div class="weight-item">
                 <span style="width:25px; font-weight:bold;">{{n}}</span>
-                <div class="weight-bar"><div class="weight-fill" style="width:{{v*15}}%"></div></div>
-                <span style="font-size:10px; color:#475569;">{{v}}</span>
+                <div class="progress-bg"><div class="progress-fill" style="width:{{v*12}}%"></div></div>
+                <span style="color:#475569; font-size:11px;">{{v}}%</span>
             </div>
             {% endfor %}
         </div>
-        <div class="card" style="background:var(--card); padding:20px; border-radius:15px; border:1px solid var(--border);">
-            <div style="color:var(--pink); margin-bottom:15px;">🛡️ 事实避热状态</div>
-            <div style="font-size:12px; color:#64748b; line-height:1.6;">
-                当前已通过全网购买 Fact 数据，对热门投注号码进行降权处理。博弈型预测已自动避开：[1, 8, 11, 15, 22, 33]。
-            </div>
+        <div class="p-card" style="background:rgba(244,63,94,0.03); border:1px solid var(--pink);">
+            <div style="color:var(--pink); font-weight:bold; margin-bottom:10px;">🛡️ 事实避热状态</div>
+            <p style="font-size:12px; color:#94a3b8; line-height:1.6;">
+                量子引擎已接入全网购买 Fact 数据流。对当前热门投注组（大乐透 01-08-15-22-33 等）进行了深度负向干扰。第四组“避热型”预测已完全剔除高热数字，降低撞奖风险。
+            </p>
         </div>
     </div>
 </div>
 
 <div class="selector-bar">
-    <div style="color:var(--cyan); font-weight:bold; margin-right:15px;">趋势模拟:</div>
+    <div style="font-size:12px; color:var(--cyan); font-weight:bold; margin-right:10px;">趋势模拟:</div>
     {% for i in range(1,36) %}<div class="s-ball" onclick="this.classList.toggle('active-r')">{{i}}</div>{% endfor %}
-    <div style="width:2px; height:25px; background:#334155; margin:0 10px;"></div>
+    <div style="width:1px; height:25px; background:#334155; margin:0 10px;"></div>
     {% for i in range(1,13) %}<div class="s-ball" onclick="this.classList.toggle('active-b')">{{i}}</div>{% endfor %}
 </div>
 
-<script>
-    // 自动刷新逻辑
-    setTimeout(() => { location.reload(); }, 600000); // 10分钟刷新一次
-</script>
 </body>
 </html>
