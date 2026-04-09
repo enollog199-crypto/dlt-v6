@@ -2,78 +2,127 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <title>DEXTRO AI | V16.1 稳定版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DEXTRO AI | 决策终端 V16.3</title>
     <style>
-        :root { --bg: #030712; --card: #0f172a; --cyan: #22d3ee; --pink: #f43f5e; --amber: #fbbf24; }
-        body { background: var(--bg); color: #f1f5f9; font-family: sans-serif; margin: 0; padding: 15px; }
+        :root { --bg: #030712; --card: #0f172a; --cyan: #22d3ee; --pink: #f43f5e; --amber: #fbbf24; --slate: #64748b; }
+        body { background: var(--bg); color: #f1f5f9; font-family: 'Inter', system-ui, sans-serif; margin: 0; padding: 15px; line-height: 1.5; }
         .container { max-width: 1200px; margin: 0 auto; }
-        .header { display: flex; justify-content: space-between; background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid #1e293b; margin-bottom: 20px; }
-        .avoid-panel { display: flex; gap: 20px; background: rgba(244,63,94,0.1); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--pink); }
-        .ball-sm { width: 22px; height: 22px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; margin: 0 2px; border: 1px solid; }
-        .red-sm { border-color: var(--pink); color: var(--pink); }
-        .blue-sm { border-color: var(--cyan); color: var(--cyan); }
-        .pred-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 15px; }
-        .pred-card { background: var(--card); padding: 20px; border-radius: 16px; border: 1px solid #1e293b; }
-        .ball { width: 36px; height: 36px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 5px; border: 2px solid; }
-        .sel-ball { cursor: pointer; border: 1px solid #334155; padding: 5px 8px; border-radius: 4px; display: inline-block; margin: 3px; font-size: 12px; }
-        .sel-ball.active { background: var(--cyan); color: #000; }
-        .matrix-w { background: #fff; color: #000; padding: 15px; border-radius: 12px; margin-top: 20px; overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 10px; text-align: center; }
-        th, td { border: 1px solid #ddd; padding: 4px; }
-        .hit { background: var(--pink); color: #fff; border-radius: 50%; padding: 2px 5px; }
+        
+        /* 顶部状态栏 */
+        .header { display: flex; justify-content: space-between; align-items: center; background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid #1e293b; margin-bottom: 20px; }
+        #clock { font-family: monospace; font-size: 26px; color: var(--cyan); font-weight: 900; }
+
+        /* 避热池区分 */
+        .avoid-panel { display: flex; gap: 20px; background: rgba(244, 63, 94, 0.05); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid rgba(244, 63, 94, 0.2); }
+        .ball-sm { width: 24px; height: 24px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; margin: 0 2px; }
+        .red-sm { border: 1px solid var(--pink); color: var(--pink); }
+        .blue-sm { border: 1px solid var(--cyan); color: var(--cyan); }
+
+        /* AI 三组预测卡片 */
+        .pred-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; margin-bottom: 25px; }
+        .pred-card { background: var(--card); padding: 25px; border-radius: 16px; border: 1px solid #1e293b; transition: transform 0.3s; }
+        .pred-card:hover { transform: translateY(-5px); border-color: var(--cyan); }
+        .ball { width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; margin-right: 8px; font-size: 18px; }
+        
+        /* 预选区 */
+        .pre-select { background: #111827; padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #374151; }
+        .sel-ball { cursor: pointer; border: 1px solid #374151; padding: 6px 12px; border-radius: 6px; display: inline-block; margin: 4px; font-size: 13px; transition: 0.2s; }
+        .sel-ball.active { background: var(--cyan); color: #000; border-color: var(--cyan); font-weight: bold; }
+
+        /* 数据矩阵 */
+        .matrix-w { background: #ffffff; color: #000; padding: 20px; border-radius: 12px; overflow-x: auto; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: center; }
+        th { background: #f8fafc; padding: 10px 5px; border: 1px solid #e2e8f0; }
+        td { border: 1px solid #e2e8f0; padding: 8px 2px; }
+        .hit { background: var(--pink); color: #fff; border-radius: 50%; width: 22px; height: 22px; display: inline-block; line-height: 22px; font-weight: bold; }
+        .omission-row { background: #fffbe6; font-weight: bold; color: #9a3412; }
     </style>
 </head>
 <body>
+
 <div class="container">
     <div class="header">
         <div>
-            <div id="clock" style="font-size: 24px; font-weight: bold; color: var(--cyan);">00:00:00</div>
+            <div style="font-size: 11px; color: var(--slate); letter-spacing: 1px;">SYSTEM ANALYTICS</div>
+            <div id="clock">00:00:00</div>
         </div>
         <div style="text-align: right;">
-            <div style="font-size: 18px;">第 {{ last.p }} 期</div>
-            <div style="font-size: 12px; color: #64748b;">开奖日: {{ last.date }}</div>
+            <div style="font-size: 20px; font-weight: bold;">第 {{ last.p }} 期</div>
+            <div style="font-size: 12px; color: var(--slate);">数据同步: {{ last.date }}</div>
         </div>
     </div>
 
     <div class="avoid-panel">
-        <div><b style="color:var(--pink)">[红球避热]:</b> {% for n in hot_red %}<span class="ball-sm red-sm">{{ "%02d"|format(n) }}</span>{% endfor %}</div>
-        <div><b style="color:var(--cyan)">[蓝球避热]:</b> {% for n in hot_blue %}<span class="ball-sm blue-sm">{{ "%02d"|format(n) }}</span>{% endfor %}</div>
+        <div>
+            <span style="font-size: 13px; font-weight: bold; color: var(--pink);">[红球避热]:</span>
+            {% for n in hot_red %}<span class="ball-sm red-sm">{{ "%02d"|format(n) }}</span>{% endfor %}
+        </div>
+        <div style="width: 1px; background: #334155;"></div>
+        <div>
+            <span style="font-size: 13px; font-weight: bold; color: var(--cyan);">[蓝球避热]:</span>
+            {% for n in hot_blue %}<span class="ball-sm blue-sm">{{ "%02d"|format(n) }}</span>{% endfor %}
+        </div>
     </div>
 
     <div class="pred-grid">
         {% for p in preds %}
-        <div class="pred-card">
-            <h3 style="color: {{p.color}}; margin:0;">{{ p.name }}</h3>
-            <p style="font-size: 11px; color: #64748b;">{{ p.method }}</p>
-            <div style="margin: 15px 0;">
-                {% for n in p.r %}<span class="ball" style="color:var(--pink)">{{ "%02d"|format(n) }}</span>{% endfor %}
-                {% for n in p.b %}<span class="ball" style="color:var(--cyan)">{{ "%02d"|format(n) }}</span>{% endfor %}
+        <div class="pred-card" style="border-top: 4px solid {{p.color}}">
+            <h3 style="margin: 0; color: {{p.color}}; letter-spacing: 1px;">{{ p.name }}</h3>
+            <p style="font-size: 12px; color: var(--slate); margin: 10px 0 20px 0; height: 36px; overflow: hidden;">{{ p.method }}</p>
+            <div style="display: flex; align-items: center;">
+                {% for n in p.r %}<div class="ball" style="border: 2px solid var(--pink); color: var(--pink);">{{ "%02d"|format(n) }}</div>{% endfor %}
+                <div style="width: 2px; height: 30px; background: #334155; margin: 0 10px;"></div>
+                {% for n in p.b %}<div class="ball" style="border: 2px solid var(--cyan); color: var(--cyan);">{{ "%02d"|format(n) }}</div>{% endfor %}
             </div>
         </div>
         {% endfor %}
     </div>
 
-    <div style="background:#1e293b; padding:15px; border-radius:12px; margin-top:20px;">
-        <h4>🎯 预选号/杀号区</h4>
-        {% for i in range(1, 36) %}<span class="sel-ball" onclick="this.classList.toggle('active')">{{ "%02d"|format(i) }}</span>{% endfor %}
+    <div class="pre-select">
+        <h4 style="margin: 0 0 15px 0; color: var(--cyan);">🎯 交互式预选号/杀号工具</h4>
+        <div>
+            {% for i in range(1, 36) %}
+            <span class="sel-ball" onclick="this.classList.toggle('active')">{{ "%02d"|format(i) }}</span>
+            {% endfor %}
+        </div>
     </div>
 
     <div class="matrix-w">
-        <h3>历史矩阵 (100期)</h3>
+        <h3 style="margin: 0 0 20px 0; border-left: 4px solid var(--pink); padding-left: 10px;">历史走势矩阵 (百期深度)</h3>
         <table>
-            <tr><th>期号</th>{% for i in range(1, 36) %}<th>{{i}}</th>{% endfor %}</tr>
-            <tr style="background:#fffbe6"><td>遗漏</td>{% for i in range(1,36) %}<td>{{ r_omission[i] }}</td>{% endfor %}</tr>
-            {% for h in history[:15] %}
-            <tr><td>{{ h.p }}</td>{% for i in range(1, 36) %}<td>{% if i in h.r %}<span class="hit">{{i}}</span>{% else %}.{% endif %}</td>{% endfor %}</tr>
-            {% endfor %}
+            <thead>
+                <tr>
+                    <th>期号</th>
+                    {% for i in range(1, 36) %}<th>{{ i }}</th>{% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="omission-row">
+                    <td>当前遗漏</td>
+                    {% for i in range(1, 36) %}<td>{{ r_omission[i] }}</td>{% endfor %}
+                </tr>
+                {% for h in history[:20] %}
+                <tr>
+                    <td style="font-family: monospace; color: var(--slate);">{{ h.p }}</td>
+                    {% for i in range(1, 36) %}
+                        <td>{% if i in h.r %}<span class="hit">{{ i }}</span>{% else %}.{% endif %}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
         </table>
     </div>
 </div>
+
 <script>
-    setInterval(() => {
+    function updateClock() {
         const now = new Date();
-        document.getElementById('clock').innerText = now.toLocaleTimeString('zh-CN', {timeZone: 'Asia/Shanghai', hour12: false});
-    }, 1000);
+        const options = { timeZone: 'Asia/Shanghai', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' };
+        document.getElementById('clock').innerText = now.toLocaleTimeString('zh-CN', options);
+    }
+    setInterval(updateClock, 1000); updateClock();
 </script>
+
 </body>
 </html>
