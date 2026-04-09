@@ -2,104 +2,101 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <title>DEXTRO AI | 决策终端</title>
+    <title>DEXTRO AI | 机器学习决策终端</title>
     <style>
-        :root { --bg: #070b14; --card: #111827; --cyan: #22d3ee; --pink: #f43f5e; --amber: #f59e0b; }
-        body { background: var(--bg); color: #e2e8f0; font-family: sans-serif; margin: 0; padding: 20px; }
-        .header { display: flex; justify-content: space-between; background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #1f2937; }
-        .bj-time { color: var(--cyan); font-family: monospace; font-size: 18px; font-weight: bold; }
+        :root { --bg: #020617; --card: #1e293b; --red: #f43f5e; --blue: #3b82f6; --cyan: #22d3ee; }
+        body { background: var(--bg); color: #f1f5f9; font-family: system-ui, sans-serif; margin: 0; padding: 15px; }
+        .container { max-width: 1200px; margin: 0 auto; }
         
-        /* 避热池样式 */
-        .avoid-pool { background: rgba(244, 63, 94, 0.1); border: 1px solid var(--pink); padding: 15px; border-radius: 12px; margin-bottom: 20px; }
-        .mini-ball { display: inline-block; width: 22px; height: 22px; border-radius: 50%; text-align: center; line-height: 22px; font-size: 11px; margin: 2px; background: #334155; color: #fff; }
+        /* Header */
+        .header { display: flex; justify-content: space-between; background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #334155; }
+        .bj-time { color: var(--cyan); font-family: monospace; font-size: 20px; font-weight: bold; }
 
-        /* 矩阵表格 */
+        /* AI Result Card */
+        .ai-card { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 25px; border-radius: 16px; border: 1px solid var(--cyan); margin-bottom: 25px; box-shadow: 0 0 20px rgba(34,211,238,0.1); }
+        .ball { display: inline-flex; width: 45px; height: 45px; border-radius: 50%; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; margin-right: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .red-ball { background: var(--red); color: #fff; }
+        .blue-ball { background: var(--blue); color: #fff; }
+
+        /* Probabilities */
+        .prob-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-top: 20px; }
+        .prob-item { background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px; text-align: center; border: 1px solid #334155; }
+        .prob-bar { height: 4px; background: #334155; border-radius: 2px; margin-top: 5px; overflow: hidden; }
+        .prob-fill { height: 100%; background: var(--cyan); }
+
+        /* Matrix Table */
         .matrix-w { background: #fff; color: #000; padding: 15px; border-radius: 12px; overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 11px; }
-        th, td { border: 1px solid #e2e8f0; padding: 4px 2px; text-align: center; }
-        .omission-val { color: #94a3b8; font-size: 9px; }
-        .hit-r { background: #ef4444; color: #fff; border-radius: 50%; font-weight: bold; }
-        .hit-b { background: #3b82f6; color: #fff; border-radius: 50%; font-weight: bold; }
-
-        .pred-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        .pred-card { background: var(--card); padding: 15px; border-radius: 12px; border-left: 5px solid #fff; }
-        .ball { display: inline-block; width: 30px; height: 30px; border-radius: 50%; text-align: center; line-height: 30px; margin-right: 5px; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; text-align: center; }
+        th, td { border: 1px solid #e2e8f0; padding: 5px 2px; }
+        .hit { background: var(--red); color: #fff; border-radius: 50%; width: 20px; height: 20px; display: inline-block; line-height: 20px; }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <div>
-        <div style="font-size: 12px; color: #94a3b8;">北京时间 (实时)</div>
-        <div id="clock" class="bj-time">00:00:00</div>
-    </div>
-    <div style="text-align: right;">
-        <div style="font-size: 14px; font-weight: bold;">最新开奖: {{ last_period.p }} 期 ({{ last_period.date }})</div>
-        <div style="margin-top: 5px;">
-            {% for n in last_period.r %}<span class="ball" style="background:var(--pink);">{{ "%02d"|format(n) }}</span>{% endfor %}
-            {% for n in last_period.b %}<span class="ball" style="background:#3b82f6;">{{ "%02d"|format(n) }}</span>{% endfor %}
-        </div>
-    </div>
-</div>
-
-<div class="avoid-pool">
-    <strong style="color:var(--pink); font-size: 14px;">🔥 事实避热池 (本期算法已剔除):</strong>
-    <div style="margin-top:10px;">
-        前区热号: {% for n in hot_red %}<span class="mini-ball">{{ "%02d"|format(n) }}</span>{% endfor %} 
-        | 后区热号: {% for n in hot_blue %}<span class="mini-ball" style="background:#3b82f6;">{{ "%02d"|format(n) }}</span>{% endfor %}
-    </div>
-</div>
-
-<div class="pred-grid">
-    {% for p in preds %}
-    <div class="pred-card" style="border-left-color: {{p.c}};">
-        <div style="color:{{p.c}}; font-weight: bold;">{{ p.n }}</div>
-        <div style="font-size: 11px; color: #64748b; margin-bottom: 10px;">{{ p.d }}</div>
+<div class="container">
+    <div class="header">
         <div>
-            {% for n in p.r %}<span class="ball" style="border: 1px solid var(--pink); color: var(--pink);">{{ "%02d"|format(n) }}</span>{% endfor %}
-            <span style="color: #334155;">|</span>
-            {% for n in p.b %}<span class="ball" style="border: 1px solid #3b82f6; color: #3b82f6;">{{ "%02d"|format(n) }}</span>{% endfor %}
+            <div style="font-size: 11px; color: #94a3b8;">AI 实时监控中</div>
+            <div id="clock" class="bj-time">00:00:00</div>
+        </div>
+        <div style="text-align: right;">
+            <div style="font-weight: bold;">最新开奖：{{ last.p }} 期</div>
+            <div style="font-size: 12px; color: #94a3b8;">{{ last.date }}</div>
         </div>
     </div>
-    {% endfor %}
-</div>
 
-<div class="matrix-w">
-    <h3 style="margin-top:0;">近 50 期 5+2 走势矩阵 (含实时遗漏)</h3>
-    <table>
-        <thead>
-            <tr style="background: #f8fafc;">
-                <th>期号</th>
-                {% for i in range(1,36) %}<th>{{ "%02d"|format(i) }}</th>{% endfor %}
-                <th style="background:#f1f5f9;">|</th>
-                {% for i in range(1,13) %}<th>{{ "%02d"|format(i) }}</th>{% endfor %}
-            </tr>
-        </thead>
-        <tbody>
-            <tr style="background: #fffbe6; font-weight: bold;">
-                <td>当前遗漏</td>
-                {% for i in range(1,36) %}<td>{{ r_omission[i] }}</td>{% endfor %}
-                <td>|</td>
-                {% for i in range(1,13) %}<td>{{ b_omission[i] }}</td>{% endfor %}
-            </tr>
-            {% for h in history %}
-            <tr>
-                <td style="background:#f8fafc; color:#64748b;">{{ h.p }}</td>
-                {% for i in range(1,36) %}
-                    <td class="{% if i in h.r %}hit-r{% else %}omission-val{% endif %}">
-                        {% if i in h.r %}{{ i }}{% else %}.{% endif %}
-                    </td>
-                {% endfor %}
-                <td>|</td>
-                {% for i in range(1,13) %}
-                    <td class="{% if i in h.b %}hit-b{% else %}omission-val{% endif %}">
-                        {% if i in h.b %}{{ i }}{% else %}.{% endif %}
-                    </td>
-                {% endfor %}
-            </tr>
+    <div class="ai-card">
+        <div style="display:flex; align-items:center; margin-bottom:20px;">
+            <span style="font-size: 20px; font-weight: 900; color: var(--cyan);">🧠 AI 随机森林预测模型</span>
+            <span style="margin-left:15px; font-size:12px; background:rgba(34,211,238,0.1); color:var(--cyan); padding:2px 8px; border-radius:4px;">高置信度组合</span>
+        </div>
+        
+        <div style="display: flex; align-items: center;">
+            {% for n in reds %}
+                <div class="ball red-ball">{{ "%02d"|format(n) }}</div>
             {% endfor %}
-        </tbody>
-    </table>
+            <div style="width:2px; height:30px; background:#334155; margin: 0 15px;"></div>
+            {% for n in blues %}
+                <div class="ball blue-ball">{{ "%02d"|format(n) }}</div>
+            {% endfor %}
+        </div>
+
+        <div class="prob-grid">
+            {% for k, v in probs[:10] %}
+            <div class="prob-item">
+                <div style="font-size:12px; color:#94a3b8;">号: {{ "%02d"|format(k|int) }}</div>
+                <div style="font-weight:bold; color:var(--cyan);">{{ v }}%</div>
+                <div class="prob-bar"><div class="prob-fill" style="width: {{v}}%"></div></div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="matrix-w">
+        <h3 style="margin: 0 0 10px 0;">开奖分布走势（基于 1-35 遗漏矩阵）</h3>
+        <table>
+            <thead>
+                <tr style="background:#f8fafc;">
+                    <th>期号</th>
+                    {% for i in range(1,36) %}<th>{{i}}</th>{% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="background:#fffbe6; font-weight:bold;">
+                    <td>遗漏</td>
+                    {% for i in range(1,36) %}<td>{{ r_omission[i] }}</td>{% endfor %}
+                </tr>
+                {% for h in history[:20] %}
+                <tr>
+                    <td style="color:#64748b;">{{ h.p }}</td>
+                    {% for i in range(1,36) %}
+                    <td>{% if i in h.r %}<span class="hit">{{i}}</span>{% else %}.{% endif %}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <script>
@@ -108,8 +105,7 @@
         const options = { timeZone: 'Asia/Shanghai', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' };
         document.getElementById('clock').innerText = now.toLocaleTimeString('zh-CN', options);
     }
-    setInterval(updateClock, 1000);
-    updateClock();
+    setInterval(updateClock, 1000); updateClock();
 </script>
 
 </body>
