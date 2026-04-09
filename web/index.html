@@ -2,64 +2,54 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <title>DEXTRO AI | 大乐透深度走势决策终端</title>
+    <title>DEXTRO AI | 多源数据终端</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root { --bg: #030712; --card: rgba(17, 24, 39, 0.9); --cyan: #22d3ee; --pink: #f43f5e; --amber: #f59e0b; --border: rgba(255, 255, 255, 0.1); }
-        body { background: #0b0f1a; color: #e2e8f0; font-family: sans-serif; margin: 0; padding: 15px; }
-        .container { max-width: 1500px; margin: 0 auto; }
-        
-        /* 顶部最新开奖 */
-        .top-bar { display: flex; justify-content: space-between; background: var(--card); padding: 15px 25px; border-radius: 15px; margin-bottom: 20px; border: 1px solid var(--cyan); }
-        .last-res .ball { width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin: 0 3px; font-weight: bold; font-size: 14px; }
-        
-        /* 预测四组 */
-        .predict-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
-        .p-card { background: var(--card); padding: 15px; border-radius: 12px; border-top: 4px solid #fff; }
-        .p-ball { width: 32px; height: 32px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; margin: 2px; font-weight: 800; font-size: 14px; border: 1px solid rgba(255,255,255,0.1); }
-
-        /* 核心走势图表 */
-        .matrix-box { background: #fff; color: #000; border-radius: 10px; padding: 10px; overflow-x: auto; margin-bottom: 30px; }
-        .zst-table { border-collapse: collapse; width: 100%; font-size: 12px; font-family: monospace; }
-        .zst-table th, .zst-table td { border: 1px solid #ddd; text-align: center; padding: 4px 0; width: 22px; }
-        .zst-table .period-td { width: 80px; color: #666; }
-        .red-active { background: #ff4d4f; color: #fff; border-radius: 50%; }
-        .blue-active { background: #1890ff; color: #fff; border-radius: 50%; }
-        
-        /* 底部模拟选号 */
-        .simulator { position: sticky; bottom: 0; background: #1e293b; padding: 15px; border-top: 2px solid var(--cyan); display: flex; align-items: center; justify-content: center; gap: 10px; z-index: 100; }
-        .sim-ball { width: 35px; height: 35px; border: 1px solid #475569; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; font-size: 13px; }
-        .sim-ball.active-r { background: #ef4444; border-color: #ef4444; color: #fff; }
-        .sim-ball.active-b { background: #3b82f6; border-color: #3b82f6; color: #fff; }
-
-        .side-panel { display: grid; grid-template-columns: 1fr 300px; gap: 20px; }
-        .bar-bg { background: rgba(255,255,255,0.05); height: 6px; border-radius: 3px; flex: 1; }
-        .bar-fill { background: var(--cyan); height: 100%; border-radius: 3px; }
+        body { background: #0b0f1a; color: #e2e8f0; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 15px; padding-bottom: 100px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; background: var(--card); padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid rgba(34,211,238,0.3); }
+        .ball { width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin: 0 2px; font-weight: bold; font-size: 12px; box-shadow: 0 0 8px rgba(0,0,0,0.5); }
+        .predict-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .p-card { background: var(--card); padding: 15px; border-radius: 12px; border-left: 5px solid #fff; position: relative; }
+        .p-ball { width: 30px; height: 30px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; margin: 2px; font-weight: 800; border: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.2); }
+        .matrix-box { background: #fff; color: #000; border-radius: 8px; padding: 10px; overflow-x: auto; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .zst-table { border-collapse: collapse; width: 100%; font-size: 11px; }
+        .zst-table th, .zst-table td { border: 1px solid #eee; text-align: center; padding: 4px 0; }
+        .red-active { background: #ff4d4f; color: #fff; border-radius: 50%; width: 18px; height: 18px; margin: 0 auto; line-height: 18px; font-weight: bold; }
+        .blue-active { background: #1890ff; color: #fff; border-radius: 50%; width: 18px; height: 18px; margin: 0 auto; line-height: 18px; font-weight: bold; }
+        .simulator { position: fixed; bottom: 0; left: 0; right: 0; background: #111827; padding: 15px; border-top: 3px solid var(--cyan); display: flex; align-items: center; justify-content: center; gap: 8px; z-index: 9999; flex-wrap: wrap; box-shadow: 0 -10px 20px rgba(0,0,0,0.5); }
+        .sim-ball { width: 32px; height: 32px; border: 1px solid #374151; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; transition: 0.2s; }
+        .sim-ball:hover { border-color: var(--cyan); }
+        .active-r { background: #ef4444 !important; border-color: #ef4444 !important; color: #fff; transform: scale(1.1); }
+        .active-b { background: #3b82f6 !important; border-color: #3b82f6 !important; color: #fff; transform: scale(1.1); }
     </style>
 </head>
 <body>
-
 <div class="container">
     <header class="top-bar">
         <div>
-            <span style="color:var(--cyan); font-weight:bold;">最新开奖 [{{ last_period.period }}期]:</span>
-            <div class="last-res" style="display:inline-block; margin-left:15px;">
+            <span style="color:var(--cyan); font-size:13px;">📡 多源数据流已建立 | 最新: {{ last_period.period }}</span>
+            <div style="margin-top:5px;">
                 {% for n in last_period.red %}<span class="ball" style="background:#ff4d4f; color:#fff;">{{ "%02d"|format(n) }}</span>{% endfor %}
-                <span style="color:#666;">+</span>
+                <span style="color:#444"> + </span>
                 {% for n in last_period.blue %}<span class="ball" style="background:#1890ff; color:#fff;">{{ "%02d"|format(n) }}</span>{% endfor %}
             </div>
         </div>
-        <div id="clock" style="color:var(--amber); font-family:monospace;">加载时间...</div>
+        <div style="text-align:right">
+            <div id="clock" style="font-family:monospace; color:var(--amber)">00:00:00</div>
+            <div style="font-size:10px; color:#475569">数据状态: 实时同步中</div>
+        </div>
     </header>
 
     <div class="predict-grid">
         {% for p in preds %}
-        <div class="p-card" style="border-color:{{p.c}}">
+        <div class="p-card" style="border-left-color:{{p.c}}">
             <div style="font-size:12px; font-weight:bold; color:{{p.c}}">{{ p.n }}</div>
-            <div style="font-size:10px; color:#94a3b8; margin-bottom:10px;">{{ p.d }}</div>
-            <div>
+            <div style="font-size:10px; color:#64748b; margin-bottom:8px;">{{ p.d }}</div>
+            <div style="display:flex; flex-wrap:wrap;">
                 {% for n in p.r %}<span class="p-ball" style="color:var(--pink)">{{ "%02d"|format(n) }}</span>{% endfor %}
-                <span style="color:#444">|</span>
+                <span style="line-height:35px; margin:0 5px; color:#333">|</span>
                 {% for n in p.b %}<span class="p-ball" style="color:var(--cyan)">{{ "%02d"|format(n) }}</span>{% endfor %}
             </div>
         </div>
@@ -67,99 +57,61 @@
     </div>
 
     <div class="matrix-box">
-        <div style="color:#333; font-weight:bold; margin-bottom:10px;">趋势特征矩阵 (近50期走势)</div>
         <table class="zst-table">
             <thead>
-                <tr style="background:#f5f5f5">
-                    <th rowspan="2" class="period-td">期号</th>
-                    <th colspan="35">前区号码走势</th>
-                    <th colspan="12">后区走势</th>
+                <tr style="background:#f8fafc">
+                    <th rowspan="2" style="width:80px">期号</th><th colspan="35">前区走势 (01-35)</th><th colspan="12">后区走势 (01-12)</th>
                 </tr>
-                <tr style="background:#fafafa">
-                    {% for i in range(1,36) %}<th>{{i}}</th>{% endfor %}
-                    {% for i in range(1,13) %}<th>{{i}}</th>{% endfor %}
+                <tr style="background:#f1f5f9">
+                    {% for i in range(1,36) %}<th>{{i}}</th>{% endfor %}{% for i in range(1,13) %}<th>{{i}}</th>{% endfor %}
                 </tr>
             </thead>
             <tbody>
                 {% for r in history %}
                 <tr>
-                    <td class="period-td">{{ r.p }}</td>
-                    {% for i in range(1,36) %}
-                    <td>{% if i in r.r %}<div class="red-active">{{i}}</div>{% endif %}</td>
-                    {% endfor %}
-                    {% for i in range(1,13) %}
-                    <td>{% if i in r.b %}<div class="blue-active">{{i}}</div>{% endif %}</td>
-                    {% endfor %}
+                    <td style="background:#f8fafc; color:#64748b; font-weight:bold">{{ r.p }}</td>
+                    {% for i in range(1,36) %}<td>{% if i in r.r %}<div class="red-active">{{i}}</div>{% endif %}</td>{% endfor %}
+                    {% for i in range(1,13) %}<td>{% if i in r.b %}<div class="blue-active">{{i}}</div>{% endif %}</td>{% endfor %}
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 
-    <div class="side-panel">
-        <div class="card" style="background:var(--card); padding:20px; border-radius:15px;">
-            <div style="margin-bottom:15px;">📈 命中率拟合曲线 (历史回测)</div>
-            <div style="height:250px;"><canvas id="mainChart"></canvas></div>
+    <div style="display:grid; grid-template-columns: 1fr 300px; gap:20px;">
+        <div class="card" style="background:var(--card); padding:15px; border-radius:12px;">
+            <div style="font-size:13px; margin-bottom:15px; color:var(--cyan)">AI 命中率拟合 (近 50 期)</div>
+            <div style="height:200px;"><canvas id="mainChart"></canvas></div>
         </div>
-        
-        <div>
-            <div class="card" style="background:var(--card); padding:15px; border-radius:15px; margin-bottom:15px;">
-                <div style="font-size:13px; color:var(--cyan); margin-bottom:15px;">📊 实时权值分布</div>
-                {% for n, v in top_nums %}
-                <div style="display:flex; align-items:center; margin-bottom:8px; font-size:11px;">
-                    <span style="width:20px;">{{n}}</span>
-                    <div class="bar-bg"><div class="bar-fill" style="width:{{v*12}}%"></div></div>
-                </div>
-                {% endfor %}
+        <div class="card" style="background:var(--card); padding:15px; border-radius:12px;">
+            <div style="font-size:13px; color:var(--cyan); margin-bottom:15px;">当前实时权值分布</div>
+            {% for n, v in top_nums %}
+            <div style="display:flex; align-items:center; margin-bottom:6px; font-size:11px;">
+                <span style="width:20px; font-family:monospace;">{{n}}</span>
+                <div style="flex:1; background:rgba(255,255,255,0.05); height:4px; margin:0 10px;"><div style="width:{{v*15}}%; background:var(--cyan); height:100%;"></div></div>
+                <span style="font-size:9px; color:#475569">{{v}}</span>
             </div>
-            
-            <div class="card" style="background:rgba(244,63,94,0.1); border:1px solid var(--pink); padding:15px; border-radius:15px;">
-                <div style="font-size:12px; color:var(--pink); font-weight:bold;">🛡️ 事实避热：已降权热号</div>
-                <div style="display:flex; flex-wrap:wrap; gap:5px; margin-top:10px;">
-                    {% for n in crowd.red %}<span style="font-size:10px; background:#000; padding:2px 5px;">{{n}}</span>{% endfor %}
-                    <span style="color:#444">|</span>
-                    {% for n in crowd.blue %}<span style="font-size:10px; background:#000; padding:2px 5px;">{{n}}</span>{% endfor %}
-                </div>
-            </div>
+            {% endfor %}
         </div>
     </div>
 </div>
 
 <div class="simulator">
-    <div style="font-size:12px; color:var(--cyan)">模拟选号:</div>
-    {% for i in range(1,36) %}<div class="sim-ball" onclick="toggleBall(this, 'r')">{{i}}</div>{% endfor %}
-    <div style="width:2px; height:20px; background:#444;"></div>
-    {% for i in range(1,13) %}<div class="sim-ball" onclick="toggleBall(this, 'b')">{{i}}</div>{% endfor %}
-    <button onclick="location.reload()" style="background:var(--cyan); border:none; padding:8px 15px; border-radius:5px; cursor:pointer;">刷新策略</button>
+    <div style="font-size:12px; color:var(--cyan); font-weight:bold; margin-right:10px;">趋势选号:</div>
+    {% for i in range(1,36) %}<div class="sim-ball" onclick="this.classList.toggle('active-r')">{{i}}</div>{% endfor %}
+    <div style="width:2px; height:20px; background:#334155; margin:0 10px;"></div>
+    {% for i in range(1,13) %}<div class="sim-ball" onclick="this.classList.toggle('active-b')">{{i}}</div>{% endfor %}
 </div>
 
 <script>
-    function toggleBall(el, type) {
-        if(type==='r') el.classList.toggle('active-r');
-        else el.classList.toggle('active-b');
-    }
-
-    function updateTime() {
-        const now = new Date();
-        document.getElementById('clock').innerText = '北京时间: ' + now.toLocaleString();
-    }
-    setInterval(updateTime, 1000);
-
-    const ctx = document.getElementById('mainChart').getContext('2d');
-    new Chart(ctx, {
+    setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
+    new Chart(document.getElementById('mainChart').getContext('2d'), {
         type: 'line',
         data: {
             labels: {{ chart_data.lab|tojson }},
-            datasets: [{
-                label: '历史命中分值',
-                data: {{ chart_data.val|tojson }},
-                borderColor: '#22d3ee',
-                backgroundColor: 'rgba(34,211,238,0.1)',
-                fill: true,
-                tension: 0.4
-            }]
+            datasets: [{ data: {{ chart_data.val|tojson }}, borderColor: '#22d3ee', backgroundColor: 'rgba(34,211,238,0.1)', fill: true, tension: 0.4, borderWidth: 2, pointRadius: 0 }]
         },
-        options: { responsive: true, maintainAspectRatio: false, scales: { y: { grid: { color: '#333' } }, x: { grid: { display: false } } } }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#1e293b' } }, x: { display: false } } }
     });
 </script>
 </body>
