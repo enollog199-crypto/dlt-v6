@@ -5,36 +5,18 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 
 app = Flask(__name__, template_folder="web")
-app.secret_key = "dextro_bet_v15_secure"
-# 数据库配置
+app.secret_key = "dextro_quantum_v16_final"
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///dextro_game.db'
 db = SQLAlchemy(app)
 
 # =========================
-# 数据库模型
+# 数据库与数据处理
 # =========================
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    password = db.Column(db.String(80), nullable=False)
-    balance = db.Column(db.Float, default=1000.0) # 初始虚拟金
+    username = db.Column(db.String(80), unique=True)
+    balance = db.Column(db.Float, default=1000.0)
 
-class Bet(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, nullable=False)
-    period = db.Column(db.String(20), nullable=False) # 期号
-    red_balls = db.Column(db.String(50))
-    blue_balls = db.Column(db.String(20))
-    amount = db.Column(db.Float)
-    status = db.Column(db.String(20), default="待开奖") # 待开奖/已中奖/未中奖
-    win_amount = db.Column(db.Float, default=0.0)
-
-with app.app_context():
-    db.create_all()
-
-# =========================
-# 数据引擎 (保持 V14 的防御逻辑)
-# =========================
 class DataEngine:
     def _safe_nums(self, arr, min_v, max_v):
         out = []
@@ -45,113 +27,98 @@ class DataEngine:
             except: continue
         return sorted(list(set(out)))
 
-    def fetch(self):
-        # 此处简化，实际调用之前写的 _sina 或 _500
-        return self._sina() 
-
-    def _sina(self):
+    def fetch_all(self):
         try:
-            url = "https://webapi.sporttery.cn/gateway/lottery/getHistoryPageListV1.qry?gameNo=85&pageSize=50"
+            url = "https://webapi.sporttery.cn/gateway/lottery/getHistoryPageListV1.qry?gameNo=85&pageSize=100"
             res = requests.get(url, timeout=5)
             js = res.json()
-            return [{
-                "p": i['lotteryDrawNum'],
-                "date": i['lotteryDrawTime'],
-                "r": self._safe_nums(i['lotteryDrawResult'].split()[:5], 1, 35),
-                "b": self._safe_nums(i['lotteryDrawResult'].split()[5:], 1, 12)
-            } for i in js['value']['list']]
+            data = []
+            for i in js['value']['list']:
+                nums = i['lotteryDrawResult'].split()
+                data.append({
+                    "p": i['lotteryDrawNum'],
+                    "date": i['lotteryDrawTime'], # 修复日期抓取
+                    "r": self._safe_nums(nums[:5], 1, 35),
+                    "b": self._safe_nums(nums[5:], 1, 12)
+                })
+            return data
         except: return []
 
 # =========================
-# 虚拟派奖逻辑
+# AI 三组预测逻辑
 # =========================
-def auto_settle_bets(latest_period_num, win_r, win_b):
-    """自动比对期号并派奖"""
-    pending_bets = Bet.query.filter_by(period=latest_period_num, status="待开奖").all()
-    for bet in pending_bets:
-        user_r = [int(x) for x in bet.red_balls.split(',')]
-        user_b = [int(x) for x in bet.blue_balls.split(',')]
-        
-        # 简单比对逻辑 (示例：中5+2虚拟奖10000)
-        match_r = len(set(user_r) & set(win_r))
-        match_b = len(set(user_b) & set(win_b))
-        
-        prize = 0
-        if match_r == 5 and match_b == 2: prize = bet.amount * 1000
-        elif match_r >= 3: prize = bet.amount * 5
-        
-        if prize > 0:
-            user = User.query.get(bet.user_id)
-            user.balance += prize
-            bet.status = "已中奖"
-            bet.win_amount = prize
-        else:
-            bet.status = "未中奖"
-    db.session.commit()
+def get_three_predictions(history, hot_red, hot_blue):
+    if len(history) < 20: return []
+    
+    # 基础特征准备
+    h_rev = history[::-1]
+    X = [[1 if n in h['r'] else 0 for n in range(1, 36)] for h in h_rev[:-1]]
+    last_feat = [[1 if n in history[0]['r'] else 0 for n in range(1, 36)]]
+    
+    # 预训练模型获取概率
+    probs = {}
+    for n in range(1, 36):
+        y = [1 if n in h_rev[i+1]['r'] else 0 for i in range(len(h_rev)-1)]
+        clf = RandomForestClassifier(n_estimators=20, max_depth=5)
+        clf.fit(X, y)
+        probs[n] = clf.predict_proba(last_feat)[0][1]
 
-# =========================
-# 路由逻辑
-# =========================
+    # 1. 机器学习回归组 (基于 AI 概率最高)
+    p1_r = sorted(probs, key=probs.get, reverse=True)[:5]
+    p1_b = sorted(np.random.choice(range(1,13), 2, replace=False).tolist())
+
+    # 2. 事实避热组 (剔除热号后重随机)
+    cool_pool = [n for n in range(1, 36) if n not in hot_red]
+    p2_r = sorted(random.sample(cool_pool, 5))
+    cool_blue = [n for n in range(1, 13) if n not in hot_blue]
+    p2_b = sorted(random.sample(cool_blue, 2)) if len(cool_blue)>=2 else [1,2]
+
+    # 3. 极速遗漏组 (取遗漏值最高的号码)
+    omissions = {i: 0 for i in range(1,36)}
+    for n in range(1,36):
+        for h in history:
+            if n in h['r']: break
+            omissions[n]+=1
+    p3_r = sorted(omissions, key=omissions.get, reverse=True)[:5]
+    p3_b = [1, 12] # 边界示例
+
+    return [
+        {"name": "机器学习回归组", "method": "RandomForest 随机森林模型对近百期数据进行特征拟合，捕捉非线性时序规律。", "r": sorted(p1_r), "b": p1_b, "color": "#22d3ee"},
+        {"name": "事实避热对冲组", "method": "强制剔除近 10 期内高频出现的“过热”号码，在大数定律回归压力下寻找冷区切入。", "r": sorted(p2_r), "b": p2_b, "color": "#f43f5e"},
+        {"name": "极大遗漏回补组", "method": "基于热力学遗漏模型，筛选当前遗漏值处于峰值的号码，博取反弹机会。", "r": sorted(p3_r), "b": p3_b, "color": "#fbbf24"}
+    ]
+
 @app.route("/")
 def index():
     engine = DataEngine()
-    history = engine.fetch()
+    history = engine.fetch_all()
     if not history: return "数据同步中...", 503
     
-    # 自动派奖触发
-    auto_settle_bets(history[0]['p'], history[0]['r'], history[0]['b'])
-    
-    user = None
-    if 'user_id' in session:
-        user = User.query.get(session['user_id'])
-    
-    # (此处省略 V14 的 AI 计算逻辑，保持原样即可)
-    return render_template("index.html", history=history, user=user, last=history[0])
+    # 计算避热池
+    red_freq = {i: 0 for i in range(1, 36)}
+    blue_freq = {i: 0 for i in range(1, 13)}
+    for h in history[:10]:
+        for n in h['r']: red_freq[n] += 1
+        for n in h['b']: blue_freq[n] += 1
+    hot_red = sorted(red_freq, key=red_freq.get, reverse=True)[:6]
+    hot_blue = sorted(blue_freq, key=blue_freq.get, reverse=True)[:2]
 
-@app.route("/bet", methods=["POST"])
-def place_bet():
-    if 'user_id' not in session: return jsonify({"msg": "请先登录"}), 403
+    preds = get_three_predictions(history, hot_red, hot_blue)
     
-    user = User.query.get(session['user_id'])
-    data = request.json
-    amount = float(data.get('amount', 2))
-    
-    if user.balance < amount: return jsonify({"msg": "虚拟币不足"}), 400
-    
-    new_bet = Bet(
-        user_id=user.id,
-        period=str(int(data.get('period')) + 1), # 投注下一期
-        red_balls=",".join(map(str, data.get('reds'))),
-        blue_balls=",".join(map(str, data.get('blues'))),
-        amount=amount
-    )
-    user.balance -= amount
-    db.session.add(new_bet)
-    db.session.commit()
-    return jsonify({"msg": "投注成功", "new_balance": user.balance})
+    # 遗漏值（用于趋势图）
+    r_omission = {i: 0 for i in range(1,36)}
+    for n in range(1,36):
+        for h in history:
+            if n in h['r']: break
+            r_omission[n] += 1
 
-@app.route("/register", methods=["POST"])
-def register():
-    data = request.form
-    if User.query.filter_by(username=data['username']).first():
-        return "用户名已存在"
-    new_user = User(username=data['username'], password=data['password'])
-    db.session.add(new_user)
-    db.session.commit()
-    return redirect(url_for('index'))
-
-@app.route("/login", methods=["POST"])
-def login():
-    data = request.form
-    user = User.query.filter_by(username=data['username'], password=data['password']).first()
-    if user:
-        session['user_id'] = user.id
-    return redirect(url_for('index'))
-
-@app.route("/logout")
-def logout():
-    session.pop('user_id', None)
-    return redirect(url_for('index'))
+    return render_template("index.html", 
+                           history=history, 
+                           preds=preds, 
+                           hot_red=hot_red, 
+                           hot_blue=hot_blue, 
+                           r_omission=r_omission,
+                           last=history[0])
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
