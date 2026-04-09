@@ -1,126 +1,44 @@
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DEXTRO AI | 决策终端 V14</title>
-    <style>
-        :root { --bg: #020617; --card: #0f172a; --cyan: #22d3ee; --pink: #f43f5e; --slate: #94a3b8; }
-        body { background: var(--bg); color: #f1f5f9; font-family: 'Inter', system-ui, sans-serif; margin: 0; padding: 15px; }
-        .container { max-width: 1100px; margin: 0 auto; }
-        
-        /* 状态栏 */
-        .status-bar { display: flex; justify-content: space-between; align-items: center; background: var(--card); padding: 15px 20px; border-radius: 12px; border: 1px solid #1e293b; margin-bottom: 20px; }
-        #clock { font-family: monospace; font-size: 22px; color: var(--cyan); font-weight: bold; }
+<div class="header">
+    {% if user %}
+        <div>欢迎, {{ user.username }} | 💰 虚拟余额: {{ user.balance }}</div>
+        <a href="/logout" style="color:var(--pink)">退出</a>
+    {% else %}
+        <form action="/login" method="post" style="display:inline;">
+            <input type="text" name="username" placeholder="账号">
+            <input type="password" name="password" placeholder="密码">
+            <button type="submit">登录</button>
+        </form>
+        <button onclick="document.getElementById('reg_m').style.display='block'">注册</button>
+    {% endif %}
+</div>
 
-        /* 避热预警 */
-        .alert-box { background: rgba(244, 63, 94, 0.1); border-left: 4px solid var(--pink); padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-        .mini-ball { display: inline-block; background: #1e293b; color: var(--pink); border: 1px solid var(--pink); border-radius: 4px; padding: 2px 6px; margin: 0 3px; font-weight: bold; font-family: monospace; }
-
-        /* AI 预测区 */
-        .ai-section { background: linear-gradient(145deg, #1e293b, #0f172a); border-radius: 16px; padding: 25px; border: 1px solid rgba(34, 211, 238, 0.3); box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-bottom: 25px; }
-        .ball-group { display: flex; align-items: center; gap: 10px; margin: 20px 0; }
-        .ball { width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; }
-        .red { background: var(--pink); color: #fff; box-shadow: 0 0 15px rgba(244, 63, 94, 0.4); }
-        .blue { background: #3b82f6; color: #fff; box-shadow: 0 0 15px rgba(59, 130, 246, 0.4); }
-
-        /* 概率网格 */
-        .prob-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 10px; }
-        .prob-card { background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #1e293b; }
-
-        /* 数据矩阵 */
-        .matrix-box { background: #fff; color: #000; padding: 20px; border-radius: 12px; overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 11px; text-align: center; }
-        th, td { border: 1px solid #e2e8f0; padding: 6px 2px; }
-        .hit { background: var(--pink); color: #fff; border-radius: 4px; font-weight: bold; padding: 2px 4px; }
-    </style>
-</head>
-<body>
-
-<div class="container">
-    <div class="status-bar">
-        <div>
-            <div style="font-size: 10px; color: var(--slate);">SYSTEM CLOCK (BEIJING)</div>
-            <div id="clock">00:00:00</div>
-        </div>
-        <div style="text-align: right;">
-            <div style="font-weight: bold;">第 {{ last.p }} 期同步完成</div>
-            <div style="font-size: 12px; color: var(--slate);">开奖日: {{ last.date }}</div>
-        </div>
-    </div>
-
-    <div class="alert-box">
-        <span style="color: var(--pink); font-weight: bold;">🚫 事实避热池：</span>
-        <span style="font-size: 13px; color: var(--slate);">以下高频号已在本期算法中强制降低权重：</span>
-        <div style="margin-top: 8px;">
-            {% for n in hot_red %}
-                <span class="mini-ball">{{ "%02d"|format(n) }}</span>
-            {% endfor %}
-        </div>
-    </div>
-
-    <div class="ai-section">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h2 style="margin:0; color: var(--cyan); letter-spacing: 1px;">🧠 AI RANDOM FOREST PREDICTION</h2>
-            <span style="font-size: 12px; color: var(--slate);">V14.2 加固版</span>
-        </div>
-
-        <div class="ball-group">
-            {% for n in reds %}
-                <div class="ball red">{{ "%02d"|format(n) }}</div>
-            {% endfor %}
-            <div style="width: 2px; height: 35px; background: #334155; margin: 0 10px;"></div>
-            {% for n in blues %}
-                <div class="ball blue">{{ "%02d"|format(n) }}</div>
-            {% endfor %}
-        </div>
-
-        <div style="margin-bottom: 10px; font-size: 13px; color: var(--slate);">AI 算力分布 (前 10 权重号码)：</div>
-        <div class="prob-grid">
-            {% for k, v in probs[:10] %}
-            <div class="prob-card">
-                <div style="font-size: 11px; color: var(--slate);">号码 {{ "%02d"|format(k|int) }}</div>
-                <div style="font-weight: bold; color: var(--cyan); margin-top: 4px;">{{ v }}%</div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-
-    <div class="matrix-box">
-        <h3 style="margin: 0 0 15px 0;">历史遗漏走势矩阵 (5+2)</h3>
-        <table>
-            <thead>
-                <tr style="background: #f8fafc;">
-                    <th>期号</th>
-                    {% for i in range(1, 36) %}<th>{{ i }}</th>{% endfor %}
-                </tr>
-            </thead>
-            <tbody>
-                <tr style="background: #fffbe6; font-weight: bold;">
-                    <td style="color: #9a3412;">当前遗漏</td>
-                    {% for i in range(1, 36) %}<td>{{ r_omission[i] }}</td>{% endfor %}
-                </tr>
-                {% for h in history[:15] %}
-                <tr>
-                    <td style="font-family: monospace; color: #64748b;">{{ h.p }}</td>
-                    {% for i in range(1, 36) %}
-                        <td>{% if i in h.r %}<span class="hit">{{ i }}</span>{% else %}.{% endif %}</td>
-                    {% endfor %}
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+{% if user %}
+<div class="ai-panel" style="border-color: var(--amber);">
+    <h3 style="color:var(--amber)">🎮 虚拟投注模拟器</h3>
+    <p style="font-size:11px; color:gray;">⚠️ 法律声明：本功能仅供数学概率研究，所有资金均为虚拟点数，不具货币价值。</p>
+    <div id="bet-area">
+        <p>投注期号：{{ last.p|int + 1 }}</p>
+        <button onclick="submitBet()">点击投注当前 AI 预测号码 (2 虚拟币)</button>
     </div>
 </div>
 
 <script>
-    function updateClock() {
-        const now = new Date();
-        const options = { timeZone: 'Asia/Shanghai', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' };
-        document.getElementById('clock').innerText = now.toLocaleTimeString('zh-CN', options);
-    }
-    setInterval(updateClock, 1000); updateClock();
+function submitBet() {
+    // 获取当前 AI 推荐的号码（从页面获取或重新传入）
+    const betData = {
+        period: "{{ last.p }}",
+        reds: [{{ reds|join(',') }}],
+        blues: [{{ blues|join(',') }}],
+        amount: 2.0
+    };
+    fetch('/bet', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(betData)
+    }).then(res => res.json()).then(data => {
+        alert(data.msg);
+        location.reload();
+    });
+}
 </script>
-
-</body>
-</html>
+{% endif %}
