@@ -2,33 +2,23 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <title>DEXTRO AI | 机器学习决策终端</title>
+    <title>DEXTRO AI | 终端 V13</title>
     <style>
-        :root { --bg: #020617; --card: #1e293b; --red: #f43f5e; --blue: #3b82f6; --cyan: #22d3ee; }
-        body { background: var(--bg); color: #f1f5f9; font-family: system-ui, sans-serif; margin: 0; padding: 15px; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        
-        /* Header */
-        .header { display: flex; justify-content: space-between; background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #334155; }
-        .bj-time { color: var(--cyan); font-family: monospace; font-size: 20px; font-weight: bold; }
-
-        /* AI Result Card */
-        .ai-card { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 25px; border-radius: 16px; border: 1px solid var(--cyan); margin-bottom: 25px; box-shadow: 0 0 20px rgba(34,211,238,0.1); }
-        .ball { display: inline-flex; width: 45px; height: 45px; border-radius: 50%; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; margin-right: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-        .red-ball { background: var(--red); color: #fff; }
-        .blue-ball { background: var(--blue); color: #fff; }
-
-        /* Probabilities */
-        .prob-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-top: 20px; }
-        .prob-item { background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px; text-align: center; border: 1px solid #334155; }
-        .prob-bar { height: 4px; background: #334155; border-radius: 2px; margin-top: 5px; overflow: hidden; }
-        .prob-fill { height: 100%; background: var(--cyan); }
-
-        /* Matrix Table */
-        .matrix-w { background: #fff; color: #000; padding: 15px; border-radius: 12px; overflow-x: auto; }
+        :root { --bg: #050810; --card: #111b2d; --cyan: #22d3ee; --pink: #f43f5e; }
+        body { background: var(--bg); color: #e2e8f0; font-family: 'Inter', sans-serif; margin: 0; padding: 15px; }
+        .container { max-width: 1100px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; background: var(--card); padding: 18px; border-radius: 12px; border: 1px solid #1e293b; margin-bottom: 20px; }
+        #clock { font-family: monospace; font-size: 22px; color: var(--cyan); font-weight: bold; }
+        .ai-panel { background: linear-gradient(145deg, #111b2d, #0a0f1a); padding: 25px; border-radius: 16px; border: 1px solid rgba(34,211,238,0.2); margin-bottom: 25px; }
+        .ball { display: inline-flex; width: 42px; height: 42px; border-radius: 50%; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; margin-right: 10px; }
+        .r-b { background: var(--pink); color: #fff; box-shadow: 0 0 15px rgba(244,63,94,0.3); }
+        .b-b { background: #3b82f6; color: #fff; box-shadow: 0 0 15px rgba(59,130,246,0.3); }
+        .prob-item { background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #1e293b; }
+        .matrix-w { background: #fff; color: #000; padding: 20px; border-radius: 12px; overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; font-size: 11px; text-align: center; }
-        th, td { border: 1px solid #e2e8f0; padding: 5px 2px; }
-        .hit { background: var(--red); color: #fff; border-radius: 50%; width: 20px; height: 20px; display: inline-block; line-height: 20px; }
+        th, td { border: 1px solid #e2e8f0; padding: 6px 2px; }
+        .hit { background: var(--pink); color: #fff; border-radius: 4px; padding: 2px 4px; }
+        .avoid-box { background: rgba(244,63,94,0.1); border: 1px solid var(--pink); padding: 10px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; }
     </style>
 </head>
 <body>
@@ -36,44 +26,40 @@
 <div class="container">
     <div class="header">
         <div>
-            <div style="font-size: 11px; color: #94a3b8;">AI 实时监控中</div>
-            <div id="clock" class="bj-time">00:00:00</div>
+            <div style="font-size: 11px; color: #64748b;">DATA SYNC ACTIVE</div>
+            <div id="clock">00:00:00</div>
         </div>
         <div style="text-align: right;">
-            <div style="font-weight: bold;">最新开奖：{{ last.p }} 期</div>
-            <div style="font-size: 12px; color: #94a3b8;">{{ last.date }}</div>
+            <div style="font-weight: bold; font-size: 16px;">{{ last.p }} 期数据已对齐</div>
+            <div style="font-size: 12px; color: #64748b;">{{ last.date }}</div>
         </div>
     </div>
 
-    <div class="ai-card">
-        <div style="display:flex; align-items:center; margin-bottom:20px;">
-            <span style="font-size: 20px; font-weight: 900; color: var(--cyan);">🧠 AI 随机森林预测模型</span>
-            <span style="margin-left:15px; font-size:12px; background:rgba(34,211,238,0.1); color:var(--cyan); padding:2px 8px; border-radius:4px;">高置信度组合</span>
+    <div class="avoid-box">
+        <strong style="color:var(--pink)">🔥 事实避热池 (本期算法已自动下调权重):</strong> 
+        {% for n in hot_red %}{{ "%02d"|format(n) }} {% endfor %}
+    </div>
+
+    <div class="ai-panel">
+        <h3 style="margin-top:0; color:var(--cyan)">🧠 随机森林 AI 推理结果</h3>
+        <div style="display:flex; align-items:center; margin: 20px 0;">
+            {% for n in reds %}<div class="ball r-b">{{ "%02d"|format(n) }}</div>{% endfor %}
+            <div style="width:2px; height:30px; background:#1e293b; margin:0 15px;"></div>
+            {% for n in blues %}<div class="ball b-b">{{ "%02d"|format(n) }}</div>{% endfor %}
         </div>
         
-        <div style="display: flex; align-items: center;">
-            {% for n in reds %}
-                <div class="ball red-ball">{{ "%02d"|format(n) }}</div>
-            {% endfor %}
-            <div style="width:2px; height:30px; background:#334155; margin: 0 15px;"></div>
-            {% for n in blues %}
-                <div class="ball blue-ball">{{ "%02d"|format(n) }}</div>
-            {% endfor %}
-        </div>
-
-        <div class="prob-grid">
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px;">
             {% for k, v in probs[:10] %}
             <div class="prob-item">
-                <div style="font-size:12px; color:#94a3b8;">号: {{ "%02d"|format(k|int) }}</div>
-                <div style="font-weight:bold; color:var(--cyan);">{{ v }}%</div>
-                <div class="prob-bar"><div class="prob-fill" style="width: {{v}}%"></div></div>
+                <div style="font-size:10px; color:#64748b;">号:{{k}}</div>
+                <div style="font-weight:bold; color:var(--cyan);">{{v}}%</div>
             </div>
             {% endfor %}
         </div>
     </div>
 
     <div class="matrix-w">
-        <h3 style="margin: 0 0 10px 0;">开奖分布走势（基于 1-35 遗漏矩阵）</h3>
+        <h3 style="margin: 0 0 15px 0;">5+2 分布走势走势矩阵</h3>
         <table>
             <thead>
                 <tr style="background:#f8fafc;">
@@ -86,9 +72,9 @@
                     <td>遗漏</td>
                     {% for i in range(1,36) %}<td>{{ r_omission[i] }}</td>{% endfor %}
                 </tr>
-                {% for h in history[:20] %}
+                {% for h in history[:15] %}
                 <tr>
-                    <td style="color:#64748b;">{{ h.p }}</td>
+                    <td style="background:#f8fafc; font-family:monospace;">{{ h.p }}</td>
                     {% for i in range(1,36) %}
                     <td>{% if i in h.r %}<span class="hit">{{i}}</span>{% else %}.{% endif %}</td>
                     {% endfor %}
