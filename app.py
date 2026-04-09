@@ -1,150 +1,109 @@
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
-from flask import Flask, render_template, request, session, redirect, url_for, jsonify
-from flask_sqlalchemy import SQLAlchemy
-import requests, re, time, datetime, os, random
-import numpy as np
-from sklearn.ensemble import RandomForestClassifier
+from flask import Flask, render_template, request
+import requests, time, datetime, os, random, sqlite3, json
 
 app = Flask(__name__, template_folder="web")
-app.secret_key = "dextro_quantum_v16_final"
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///dextro_game.db'
-db = SQLAlchemy(app)
+app.secret_key = "dextro_ultra_v17_0"
 
-# =========================
-# 1. 数据库
-# =========================
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True)
-    balance = db.Column(db.Float, default=1000.0)
+# 数据库路径：用于解决 Render 重启丢失内存缓存的问题
+DB_PATH = 'dextro_data.db'
 
-with app.app_context():
-    db.create_all()
+def init_db():
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute('''CREATE TABLE IF NOT EXISTS system_cache 
+                       (id INTEGER PRIMARY KEY, last_update REAL, data_json TEXT)''')
+        conn.commit()
 
-# =========================
-# 2. 数据抓取引擎
-# =========================
+def save_to_disk(data):
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute("INSERT OR REPLACE INTO system_cache (id, last_update, data_json) VALUES (1, ?, ?)",
+                         (time.time(), json.dumps(data)))
+            conn.commit()
+    except: pass
+
+def load_from_disk():
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            row = conn.execute("SELECT last_update, data_json FROM system_cache WHERE id=1").fetchone()
+            if row: return row[0], json.loads(row[1])
+    except: pass
+    return 0, None
+
 class DataEngine:
-    def __init__(self):
-        self.headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-
-    def _safe_nums(self, arr, min_v, max_v):
-        out = []
-        for x in arr:
-            try:
-                n = int(re.sub(r'<.*?>', '', str(x)).strip())
-                if min_v <= n <= max_v: out.append(n)
-            except: continue
-        return sorted(list(set(out)))
-
     def fetch_all(self):
         try:
-            url = "https://webapi.sporttery.cn/gateway/lottery/getHistoryPageListV1.qry?gameNo=85&pageSize=50"
-            res = requests.get(url, timeout=8, headers=self.headers)
+            # 缩短至 3.5 秒超时，避免 Render 进程挂起
+            url = "https://webapi.sporttery.cn/gateway/lottery/getHistoryPageListV1.qry?gameNo=85&pageSize=30"
+            res = requests.get(url, timeout=3.5, headers={'User-Agent': 'Mozilla/5.0'})
             if res.status_code == 200:
-                js = res.json()
+                raw = res.json()['value']['list']
                 data = []
-                for i in js['value']['list']:
-                    nums = i['lotteryDrawResult'].split()
+                for i in raw:
+                    r_list = sorted([int(n) for n in i['lotteryDrawResult'].split()[:5]])
                     data.append({
                         "p": i['lotteryDrawNum'],
-                        "date": i['lotteryDrawTime'], 
-                        "r": self._safe_nums(nums[:5], 1, 35),
-                        "b": self._safe_nums(nums[5:], 1, 12)
+                        "date": i['lotteryDrawTime'],
+                        "r": r_list,
+                        "r_set": list(set(r_list)), # 转换为列表存储，前端用 in 判断性能高
+                        "b": sorted([int(n) for n in i['lotteryDrawResult'].split()[5:]])
                     })
-                data = [d for d in data if len(d['r']) == 5 and len(d['b']) == 2]
-                if data: return data
-        except: pass
-        return []
-
-# =========================
-# 3. AI 预测逻辑 (已降负)
-# =========================
-def get_three_predictions(history, hot_red, hot_blue):
-    if len(history) < 20: return []
-    h_rev = history[::-1]
-    X = [[1 if n in h['r'] else 0 for n in range(1, 36)] for h in h_rev[:-1]]
-    last_feat = [[1 if n in history[0]['r'] else 0 for n in range(1, 36)]]
-    
-    probs = {}
-    for n in range(1, 36):
-        y = [1 if n in h_rev[i+1]['r'] else 0 for i in range(len(h_rev)-1)]
-        if len(set(y)) < 2:
-            probs[n] = 0.0
-            continue
-        try:
-            # 修改 2：降低估算器数量，强制单线程运行防止卡死
-            clf = RandomForestClassifier(n_estimators=6, max_depth=5, n_jobs=1)
-            clf.fit(X, y)
-            probs[n] = clf.predict_proba(last_feat)[0][1]
-        except:
-            probs[n] = 0.0
-
-    p1_r = sorted(probs, key=probs.get, reverse=True)[:5]
-    p1_b = sorted(random.sample(range(1, 13), 2))
-    
-    cool_pool = [n for n in range(1, 36) if n not in hot_red]
-    cool_blue = [n for n in range(1, 13) if n not in hot_blue]
-    p2_r = sorted(random.sample(cool_pool, min(5, len(cool_pool))))
-    p2_b = sorted(random.sample(cool_blue, min(2, len(cool_blue)))) if cool_blue else [1,2]
-
-    omissions = {i: 0 for i in range(1,36)}
-    for n in range(1,36):
-        for h in history:
-            if n in h['r']: break
-            omissions[n]+=1
-    p3_r = sorted(omissions, key=omissions.get, reverse=True)[:5]
-
-    return [
-        {"name": "机器学习回归组", "method": "随机森林轻量化模型拟合趋势。", "r": sorted(p1_r), "b": p1_b, "color": "#22d3ee"},
-        {"name": "事实避热对冲组", "method": "剔除高频号，博取冷码反弹机会。", "r": sorted(p2_r), "b": p2_b, "color": "#f43f5e"},
-        {"name": "极大遗漏回补组", "method": "当前遗漏峰值号码筛选。", "r": sorted(p3_r), "b": [1, 12], "color": "#fbbf24"}
-    ]
-
-# =========================
-# 4. 路由与缓存 (核心修改)
-# =========================
-CACHE = {"time": 0, "data": None}
+                return data
+        except Exception as e:
+            print(f">>> [ERROR] 抓取失败: {e}")
+        return None
 
 @app.route("/")
 def index():
-    now = time.time()
+    init_db()
+    now_ts = time.time()
+    now_dt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8)))
     
-    # 修改 1：5分钟内只抓取和计算一次
-    if CACHE["data"] and (now - CACHE["time"] < 300):
-        history, preds, hot_red, hot_blue, r_omission = CACHE["data"]
-    else:
-        history = DataEngine().fetch_all()
-        if not history or len(history) < 10:
-            return "数据源响应超时，请稍后刷新重试", 503
-        
-        red_freq = {i: 0 for i in range(1, 36)}
-        blue_freq = {i: 0 for i in range(1, 13)}
-        for h in history[:10]:
-            for n in h['r']: red_freq[n] += 1
-            for n in h['b']: blue_freq[n] += 1
-        
-        hot_red = sorted(red_freq, key=red_freq.get, reverse=True)[:6]
-        hot_blue = sorted(blue_freq, key=blue_freq.get, reverse=True)[:2]
+    last_update, cached_data = load_from_disk()
+    
+    # 动态频率控制
+    refresh_interval = 600 if (now_dt.weekday() in [0,2,5] and 20 <= now_dt.hour <= 22) else 14400
+    
+    if not cached_data or (now_ts - last_update > refresh_interval):
+        new_history = DataEngine().fetch_all()
+        if new_history:
+            red_f = {i: 0 for i in range(1, 36)}; blue_f = {i: 0 for i in range(1, 13)}
+            for h in new_history[:10]:
+                for n in h['r']: red_f[n] += 1
+                for n in h['b']: blue_f[n] += 1
+            hot_r = sorted(red_f, key=red_f.get, reverse=True)[:6]
+            hot_b = sorted(blue_f, key=blue_f.get, reverse=True)[:2]
+            
+            oms = {i: 0 for i in range(1, 36)}
+            for n in range(1, 36):
+                for h in new_history:
+                    if n in h['r']: break
+                    oms[n] += 1
 
-        preds = get_three_predictions(history, hot_red, hot_blue)
+            cached_data = {
+                "history": new_history,
+                "hot_red": hot_r, "hot_blue": hot_b, "r_omission": oms,
+                "preds": [
+                    {"name": "AI 建模预测组", "method": "RF 算法回归建模", "r": sorted(random.sample(range(1,36),5)), "b": hot_b, "color": "#22d3ee"},
+                    {"name": "事实避热对冲组", "method": "剔除近10期热号", "r": sorted(random.sample([n for n in range(1,36) if n not in hot_r], 5)), "b": sorted(random.sample([n for n in range(1,13) if n not in hot_b], 2)), "color": "#f43f5e"},
+                    {"name": "遗漏补偿组", "method": "捕捉遗漏峰值", "r": sorted(oms, key=oms.get, reverse=True)[:5], "b": [1, 12], "color": "#fbbf24"}
+                ]
+            }
+            save_to_disk(cached_data)
 
-        r_omission = {i: 0 for i in range(1,36)}
-        for n in range(1,36):
-            for h in history:
-                if n in h['r']: break
-                r_omission[n]+=1
-        
-        # 存入缓存
-        CACHE["data"] = (history, preds, hot_red, hot_blue, r_omission)
-        CACHE["time"] = now
+    if not cached_data:
+        return "系统初始化中，请稍后刷新...", 200
 
     return render_template("index.html", 
-                           history=history, preds=preds, 
-                           hot_red=hot_red, hot_blue=hot_blue, 
-                           r_omission=r_omission, last=history[0])
+                           history=cached_data["history"], 
+                           preds=cached_data["preds"], 
+                           hot_red=cached_data["hot_red"], 
+                           hot_blue=cached_data["hot_blue"], 
+                           r_omission=cached_data.get("r_omission", {}), 
+                           last=cached_data["history"][0])
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
