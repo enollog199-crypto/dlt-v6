@@ -3,18 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DEXTRO AI | 决策终端 V17.0</title>
+    <title>DEXTRO AI | 智能分析终端</title>
     <style>
-        :root { --bg: #020617; --card: #1e293b; --cyan: #22d3ee; --pink: #f43f5e; }
-        body { background: var(--bg); color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 12px; }
+        :root { --bg: #020617; --card: #1e293b; --cyan: #22d3ee; --pink: #f43f5e; --gray: #64748b; }
+        body { background: var(--bg); color: #f8fafc; font-family: system-ui, sans-serif; margin: 0; padding: 12px; }
         .container { max-width: 1000px; margin: 0 auto; }
-        .status-bar { display: flex; justify-content: space-between; background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 15px; border-bottom: 3px solid var(--cyan); }
+        
+        /* 状态灯样式 */
+        .source-tag { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; display: inline-flex; align-items: center; gap: 5px; }
+        .tag-live { background: rgba(34, 211, 238, 0.2); color: var(--cyan); border: 1px solid var(--cyan); }
+        .tag-offline { background: rgba(148, 163, 184, 0.2); color: var(--gray); border: 1px solid var(--gray); }
+        .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .dot-live { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+        .dot-offline { background: var(--gray); }
+
+        .status-bar { display: flex; justify-content: space-between; background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 15px; }
         .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; }
         .card { background: var(--card); padding: 20px; border-radius: 16px; border: 1px solid #334155; }
         .ball { width: 34px; height: 34px; line-height: 34px; text-align: center; border-radius: 50%; font-weight: 800; display: inline-block; margin-right: 4px; font-size: 15px; }
         .red { background: linear-gradient(135deg, #fb7185, #f43f5e); color: white; }
         .blue { background: linear-gradient(135deg, #22d3ee, #0891b2); color: white; }
-        .matrix-wrap { background: white; color: #1e293b; border-radius: 12px; padding: 15px; margin-top: 20px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .matrix-wrap { background: white; color: #1e293b; border-radius: 12px; padding: 15px; margin-top: 20px; overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 700px; }
         th, td { border: 1px solid #e2e8f0; padding: 6px 2px; text-align: center; }
         .hit { background: #f43f5e; color: white; border-radius: 50%; width: 18px; height: 18px; display: inline-block; line-height: 18px; }
@@ -22,53 +31,57 @@
 </head>
 <body>
 <div class="container">
-    {% if history and last %}
     <div class="status-bar">
-        <div><div style="font-size: 11px; color: #94a3b8;">本地时间</div><div id="clock" style="font-size: 20px; font-weight: bold; color: var(--cyan);">--:--:--</div></div>
-        <div style="text-align: right;"><div style="font-size: 18px; font-weight: bold;">第 {{ last.p }} 期</div><div style="font-size: 11px; color: #94a3b8;">开奖日期: {{ last.date }}</div></div>
+        <div>
+            <div style="margin-bottom: 5px;">
+                {% if is_real == 1 %}
+                <span class="source-tag tag-live"><span class="dot dot-live"></span> 实时数据已连接</span>
+                {% else %}
+                <span class="source-tag tag-offline"><span class="dot dot-offline"></span> 离线模拟模式</span>
+                {% endif %}
+            </div>
+            <div id="clock" style="font-size: 20px; font-weight: bold; color: var(--cyan);">--:--:--</div>
+        </div>
+        <div style="text-align: right;">
+            <div style="font-size: 18px; font-weight: bold;">{{ last.p }}</div>
+            <div style="font-size: 11px; color: #94a3b8;">{{ last.date }}</div>
+        </div>
     </div>
 
     <div class="grid">
         {% for p in preds %}
-        <div class="card" style="border-top: 4px solid {{p.color}}">
-            <h3 style="margin:0; color:{{p.color}};">{{ p.name }}</h3>
-            <div style="font-size:12px; color:#94a3b8; margin:10px 0;">{{ p.method }}</div>
+        <div class="card" style="border-top: 4px solid {{p.color if is_real == 1 else '#475569'}}">
+            <h3 style="margin:0; color:{{p.color if is_real == 1 else '#94a3b8'}};">{{ p.name }}</h3>
+            <p style="font-size:12px; color:#94a3b8;">{{ p.method }}</p>
             <div class="ball-row">
-                {% for n in p.r %}<div class="ball red">{{ "%02d"|format(n) }}</div>{% endfor %}
+                {% for n in p.r %}<div class="ball red" style="{{'filter:grayscale(1)' if is_real == 0}}">{{ "%02d"|format(n) }}</div>{% endfor %}
                 <span style="border-left: 1px solid #475569; margin: 0 5px;"></span>
-                {% for n in p.b %}<div class="ball blue">{{ "%02d"|format(n) }}</div>{% endfor %}
+                {% for n in p.b %}<div class="ball blue" style="{{'filter:grayscale(1)' if is_real == 0}}">{{ "%02d"|format(n) }}</div>{% endfor %}
             </div>
         </div>
         {% endfor %}
     </div>
 
     <div class="matrix-wrap">
-        <h3 style="margin-top:0; font-size: 15px;">历史走势走势矩阵</h3>
+        <h3 style="margin-top:0; font-size: 14px; color: #1e293b;">历史走势走势 (最近采样)</h3>
         <table>
             <thead><tr style="background:#f1f5f9;"><th>期号</th>{% for i in range(1, 36) %}<th>{{ i }}</th>{% endfor %}</tr></thead>
             <tbody>
                 <tr style="background:#fffbe6; font-weight:bold;">
                     <td>遗漏</td>
-                    {% for i in range(1, 36) %}<td>{{ r_omission.get(str(i), r_omission.get(i, '-')) }}</td>{% endfor %}
+                    {% for i in range(1, 36) %}<td>{{ r_omission.get(str(i), '-') }}</td>{% endfor %}
                 </tr>
-                {% for h in history[:20] %}
+                {% for h in history[:15] %}
                 <tr>
-                    <td style="color:#64748b; font-family:monospace;">{{ h.p }}</td>
+                    <td style="color:#64748b;">{{ h.p }}</td>
                     {% for i in range(1, 36) %}
-                    <td>{% if i in h.r_set %}<span class="hit">{{ i }}</span>{% else %}.{% endif %}</td>
+                    <td>{% if i in h.r %}<span class="hit">{{ i }}</span>{% else %}.{% endif %}</td>
                     {% endfor %}
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-    {% else %}
-    <div style="text-align: center; padding: 50px;">
-        <h2 style="color: var(--cyan);">🚀 系统正在首次初始化...</h2>
-        <p>正在拉取历史数据并持久化到本地，请稍后刷新。</p>
-        <button onclick="location.reload()" style="background: var(--cyan); border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold;">点击刷新</button>
-    </div>
-    {% endif %}
 </div>
 <script>
     function updateTime() {
