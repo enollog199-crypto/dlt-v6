@@ -4,21 +4,37 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 
 app = Flask(__name__, template_folder="web")
-app.secret_key = os.environ.get("SECRET_KEY", "dextro_quantum_ai_v12")
+app.secret_key = os.environ.get("SECRET_KEY", "dextro_armor_v13")
 
 # =========================
-# 1️⃣ 数据引擎（多源自动切换）
+# 1️⃣ 增强型数据引擎
 # =========================
 class DataEngine:
     def __init__(self):
-        self.headers = {'User-Agent': 'Mozilla/5.0'}
+        self.headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
 
-    def fetch(self):
-        # 优先尝试新浪 API (速度快)
+    def fetch_stable(self):
         data = self._sina()
         if not data:
             data = self._500()
-        return data
+        return self._clean_data(data)
+
+    def _clean_data(self, raw_data):
+        """核心修复：强制清洗所有非法号码，确保只有 1-35 和 1-12"""
+        clean_list = []
+        for item in raw_data:
+            try:
+                r_nums = sorted([int(x) for x in item['r'] if str(x).isdigit() and 1 <= int(x) <= 35])
+                b_nums = sorted([int(x) for x in item['b'] if str(x).isdigit() and 1 <= int(x) <= 12])
+                if len(r_nums) == 5 and len(b_nums) == 2:
+                    clean_list.append({
+                        "p": str(item['p']),
+                        "date": str(item.get('date', '-')),
+                        "r": r_nums,
+                        "b": b_nums
+                    })
+            except: continue
+        return clean_list
 
     def _sina(self):
         try:
@@ -28,8 +44,8 @@ class DataEngine:
             return [{
                 "p": i['lotteryDrawNum'],
                 "date": i['lotteryDrawTime'],
-                "r": sorted([int(x) for x in i['lotteryDrawResult'].split()[:5]]),
-                "b": sorted([int(x) for x in i['lotteryDrawResult'].split()[5:]])
+                "r": i['lotteryDrawResult'].split()[:5],
+                "b": i['lotteryDrawResult'].split()[5:]
             } for i in js['value']['list']]
         except: return []
 
@@ -42,50 +58,36 @@ class DataEngine:
             for r in rows[:50]:
                 tds = re.findall(r'<td.*?>(.*?)</td>', r)
                 if len(tds) >= 9:
-                    data.append({
-                        "p": tds[0].strip(),
-                        "date": tds[14].strip() if len(tds)>14 else "-",
-                        "r": sorted([int(x) for x in tds[2:7]]),
-                        "b": sorted([int(x) for x in tds[7:9]])
-                    })
+                    data.append({"p": tds[0].strip(), "date": tds[14] if len(tds)>14 else "-", "r": tds[2:7], "b": tds[7:9]})
             return data
         except: return []
 
 # =========================
-# 2️⃣ AI 核心：随机森林动态训练
+# 2️⃣ AI 预测引擎
 # =========================
 def train_and_predict(history):
-    if len(history) < 20: return [], [], {}
+    if len(history) < 15: return [1,2,3,4,5], [1,2], {i:0 for i in range(1,36)}
     
-    # 准备特征 (X: 当前期, Y: 下一期是否出现)
-    X, Y_red = [], {i: [] for i in range(1, 36)}
-    # 我们按时间正序训练 (history[::-1])
-    h_reversed = history[::-1]
+    h_rev = history[::-1]
+    X, Y = [], {i: [] for i in range(1, 36)}
     
-    for i in range(len(h_reversed)-1):
-        current = h_reversed[i]
-        nxt = h_reversed[i+1]
-        X.append([1 if n in current['r'] else 0 for n in range(1, 36)])
+    for i in range(len(h_rev)-1):
+        X.append([1 if n in h_rev[i]['r'] else 0 for n in range(1, 36)])
         for n in range(1, 36):
-            Y_red[n].append(1 if n in nxt['r'] else 0)
+            Y[n].append(1 if n in h_rev[i+1]['r'] else 0)
 
-    # 训练并预测
     last_feat = [1 if n in history[0]['r'] else 0 for n in range(1, 36)]
     probs = {}
-    
     for n in range(1, 36):
-        # 使用轻量级森林减少 CPU 占用
-        clf = RandomForestClassifier(n_estimators=30, max_depth=5)
-        clf.fit(X, Y_red[n])
-        probs[n] = round(clf.predict_proba([last_feat])[0][1] * 100, 2)
-
-    # 策略选取
-    # 1. AI 概率最高的前 5
+        try:
+            clf = RandomForestClassifier(n_estimators=20, max_depth=5)
+            clf.fit(X, Y[n])
+            probs[n] = float(clf.predict_proba([last_feat])[0][1])
+        except: probs[n] = 0.0
+        
     reds = sorted(probs, key=probs.get, reverse=True)[:5]
-    # 2. 蓝球保留随机+频率逻辑
     blues = sorted(np.random.choice(range(1, 13), 2, replace=False).tolist())
-    
-    return sorted(reds), blues, probs
+    return sorted(reds), blues, {k: round(v*100, 2) for k, v in probs.items()}
 
 # =========================
 # 3️⃣ 路由逻辑
@@ -95,33 +97,36 @@ CACHE = {"data": None, "preds": None, "time": 0}
 @app.route("/")
 def index():
     now = time.time()
-    # 5分钟内不重复计算 AI，保护服务器
     if CACHE["data"] and (now - CACHE["time"] < 300):
         history = CACHE["data"]
         ai_res = CACHE["preds"]
     else:
-        history = DataEngine().fetch()
-        if not history: return "数据同步中...", 503
+        history = DataEngine().fetch_stable()
+        if not history: return "数据源正在同步，请刷新重试", 503
         ai_res = train_and_predict(history)
         CACHE["data"], CACHE["preds"], CACHE["time"] = history, ai_res, now
 
     reds, blues, probs = ai_res
     
-    # 增加遗漏值计算用于矩阵
+    # 计算遗漏值（带安全检查）
     r_omission = {i: 0 for i in range(1, 36)}
     for n in range(1, 36):
         for h in history:
             if n in h['r']: break
             r_omission[n] += 1
+            
+    # 计算事实避热池
+    red_freq = {i: 0 for i in range(1, 36)}
+    for h in history[:10]:
+        for n in h['r']:
+            if n in red_freq: red_freq[n] += 1 # 再次双重检查
+    hot_red = sorted(red_freq, key=red_freq.get, reverse=True)[:8]
 
-    return render_template(
-        "index.html",
-        reds=reds, blues=blues, 
-        probs=sorted(probs.items(), key=lambda x:x[1], reverse=True),
-        history=history,
-        r_omission=r_omission,
-        last=history[0]
-    )
+    return render_template("index.html", 
+                           reds=reds, blues=blues, 
+                           probs=sorted(probs.items(), key=lambda x:x[1], reverse=True),
+                           history=history, r_omission=r_omission,
+                           hot_red=hot_red, last=history[0])
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
