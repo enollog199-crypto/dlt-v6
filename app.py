@@ -1,3 +1,7 @@
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning) # 忽略掉所有的用户警告
+
+from flask import Flask, render_template, request # 后面保持不变...
 from flask import Flask, render_template, request, session, redirect, url_for, jsonify
 from flask_sqlalchemy import SQLAlchemy
 import requests, re, time, datetime, os, random
