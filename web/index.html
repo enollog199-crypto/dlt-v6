@@ -2,34 +2,34 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DEXTRO AI | 进化式终端</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DEXTRO AI | 终端</title>
     <style>
         :root { --bg: #020617; --card: #1e293b; --cyan: #22d3ee; }
-        body { background: var(--bg); color: #f8fafc; font-family: system-ui, sans-serif; margin: 0; padding: 10px; padding-bottom: 120px; }
-        .container { max-width: 1000px; margin: 0 auto; }
-        .status-bar { display: flex; justify-content: space-between; align-items: center; background: var(--card); padding: 12px 18px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid var(--cyan); }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
-        .card { background: var(--card); padding: 15px; border-radius: 16px; border: 1px solid #334155; }
-        .ball { width: 32px; height: 32px; line-height: 32px; text-align: center; border-radius: 50%; font-weight: 800; display: inline-block; margin-right: 4px; font-size: 14px; }
-        .red { background: linear-gradient(135deg, #fb7185, #f43f5e); color: white; }
-        .blue { background: linear-gradient(135deg, #22d3ee, #0891b2); color: white; }
-        .matrix-wrap { background: white; color: #1e293b; border-radius: 12px; padding: 15px; margin-top: 20px; overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 700px; }
-        th, td { border: 1px solid #e2e8f0; padding: 6px 2px; text-align: center; }
-        .hit { background: #f43f5e; color: white; border-radius: 50%; width: 18px; height: 18px; display: inline-block; line-height: 18px; }
-        #feed-panel { position: fixed; bottom: 0; left: 0; right: 0; background: #0f172a; border-top: 3px solid var(--cyan); padding: 15px; z-index: 1000; box-shadow: 0 -5px 20px rgba(0,0,0,0.5); }
-        textarea { width: 100%; height: 80px; background: #1e293b; color: white; border: 1px solid #334155; padding: 10px; border-radius: 5px; font-size: 12px; margin: 8px 0; }
-        .btn { background: var(--cyan); color: #020617; border: none; padding: 10px; width: 100%; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        body { background: var(--bg); color: #f8fafc; font-family: sans-serif; margin: 0; padding: 10px; padding-bottom: 140px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .status { display: flex; justify-content: space-between; background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid var(--cyan); }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
+        .card { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid #334155; }
+        .ball { width: 30px; height: 30px; line-height: 30px; text-align: center; border-radius: 50%; font-weight: bold; display: inline-block; margin-right: 4px; font-size: 14px; }
+        .red { background: #f43f5e; color: white; }
+        .blue { background: #0891b2; color: white; }
+        .matrix { background: white; color: #1e293b; border-radius: 10px; padding: 10px; margin-top: 20px; overflow-x: auto; font-size: 11px; }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th, td { border: 1px solid #ddd; padding: 5px 2px; text-align: center; }
+        .hit { background: #f43f5e; color: white; border-radius: 50%; width: 16px; height: 16px; display: inline-block; line-height: 16px; }
+        #feed { position: fixed; bottom: 0; left: 0; right: 0; background: #0f172a; border-top: 2px solid var(--cyan); padding: 15px; z-index: 999; }
+        textarea { width: 100%; height: 70px; background: #1e293b; color: white; border: 1px solid #444; padding: 8px; border-radius: 5px; margin: 8px 0; font-size: 12px; }
+        .btn { background: var(--cyan); color: #000; border: none; padding: 10px; width: 100%; border-radius: 5px; font-weight: bold; }
     </style>
 </head>
 <body>
 <div class="container">
-    <div class="status-bar">
-        <div><div id="clock" style="font-size: 18px; font-weight: bold; color: var(--cyan);">--:--:--</div></div>
+    <div class="status">
+        <div id="clock" style="font-size: 18px; color: var(--cyan); font-weight: bold;">00:00:00</div>
         <div style="text-align: right;">
-            <div style="font-size: 16px; font-weight: bold;">第 {{ last.p }} 期</div>
-            <div style="font-size: 10px; color: #94a3b8;">最后同步: {{ last.date }}</div>
+            <div style="font-weight: bold;">第 {{ last.p }} 期</div>
+            <div style="font-size: 10px; color: #94a3b8;">{{ last.date }}</div>
         </div>
     </div>
 
@@ -37,51 +37,47 @@
     <div class="grid">
         {% for p in preds %}
         <div class="card" style="border-top: 3px solid {{p.color}}">
-            <h4 style="margin:0; color:{{p.color}};">{{ p.name }}</h4>
-            <p style="font-size:10px; color:#94a3b8; margin:4px 0;">{{ p.method }}</p>
+            <div style="font-size: 14px; color: {{p.color}}; font-weight: bold;">{{ p.name }}</div>
+            <div style="font-size: 10px; color: #888; margin-bottom: 8px;">{{ p.method }}</div>
             <div style="white-space: nowrap;">
                 {% for n in p.r %}<div class="ball red">{{ "%02d"|format(n) }}</div>{% endfor %}
-                <span style="color:#475569; font-weight:bold;">|</span>
+                <span style="color: #444;">|</span>
                 {% for n in p.b %}<div class="ball blue">{{ "%02d"|format(n) }}</div>{% endfor %}
             </div>
         </div>
         {% endfor %}
     </div>
 
-    <div class="matrix-wrap">
-        <h3 style="margin:0 0 10px 0; font-size:14px; color:#1e293b;">AI 走势矩阵 (历史 15 期)</h3>
+    <div class="matrix">
+        <h4 style="margin: 0 0 10px 0;">走势矩阵 (近期)</h4>
         <table>
-            <thead><tr style="background:#f1f5f9;"><th>期号</th>{% for i in range(1, 36) %}<th>{{ i }}</th>{% endfor %}</tr></thead>
+            <thead><tr><th>期号</th>{% for i in range(1, 36) %}<th>{{ i }}</th>{% endfor %}</tr></thead>
             <tbody>
-                <tr style="background:#fffbe6; font-weight:bold;"><td>遗漏</td>{% for i in range(1, 36) %}<td>{{ r_omission.get(str(i), '-') }}</td>{% endfor %}</tr>
-                {% for h in history[:15] %}
+                <tr style="background:#fffbe6;"><td>遗漏</td>{% for i in range(1, 36) %}<td>{{ r_omission.get(str(i), '0') }}</td>{% endfor %}</tr>
+                {% for h in history[:12] %}
                 <tr><td>{{ h.p }}</td>{% for i in range(1, 36) %}<td>{% if i in h.r %}<span class="hit">{{ i }}</span>{% else %}.{% endif %}</td>{% endfor %}</tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
     {% else %}
-    <div style="text-align:center; padding: 60px 20px; border: 2px dashed #334155; border-radius: 20px;">
-        <h2 style="color:var(--cyan)">🚀 核心已就绪</h2>
-        <p style="color:#94a3b8">请在下方粘贴历史开奖数据以激活 AI</p>
+    <div style="text-align:center; padding: 50px 20px; border: 2px dashed #334155; border-radius: 12px; color: #666;">
+        🚀 引擎已就绪，请投喂数据激活
     </div>
     {% endif %}
 </div>
 
-<div id="feed-panel">
+<div id="feed">
     <form action="/feed" method="post">
-        <input type="password" name="pw" placeholder="投喂暗号 (8888)" style="width:100%; background:#1e293b; color:white; border:1px solid #334155; padding:8px; border-radius:5px; box-sizing:border-box;">
-        <textarea name="content" placeholder="直接粘贴多行数据：&#10;26037 2026/4/8 7 12 13 28 32 6 8&#10;26036 2026/4/6 4 7 16 26 32 5 8"></textarea>
-        <button type="submit" class="btn">批量投喂并激活 AI 计算</button>
+        <input type="password" name="pw" placeholder="暗号 (8888)" style="width:100%; background:#1e293b; color:white; border:1px solid #444; padding:8px; border-radius:5px; box-sizing:border-box;">
+        <textarea name="content" placeholder="粘贴多行数据..."></textarea>
+        <button type="submit" class="btn">批量投喂并激活</button>
     </form>
 </div>
 
 <script>
-    function updateTime() {
-        const now = new Date();
-        document.getElementById('clock').innerText = now.toLocaleTimeString('zh-CN', { hour12: false });
-    }
-    setInterval(updateTime, 1000); updateTime();
+    function tick() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('zh-CN', {hour12:false}); }
+    setInterval(tick, 1000); tick();
 </script>
 </body>
 </html>
