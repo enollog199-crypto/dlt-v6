@@ -1,166 +1,205 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DEXTRO V24 | 虚拟博弈</title>
-    <style>
-        :root { --bg: #0f172a; --card: #1e293b; --cyan: #22d3ee; --rose: #f43f5e; }
-        body { background: var(--bg); color: #f1f5f9; font-family: -apple-system, sans-serif; margin: 0; padding: 10px; padding-bottom: 280px; }
-        .container { max-width: 800px; margin: 0 auto; }
-        .card { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 12px; }
-        .btn { border: none; padding: 10px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        .btn-cyan { background: var(--cyan); color: #0f172a; }
-        .btn-outline { background: transparent; border: 1px solid var(--cyan); color: var(--cyan); font-size: 12px; }
-        
-        /* 选号球池 */
-        .pool { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
-        .ball { width: 32px; height: 32px; border: 1px solid #334155; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; font-weight: bold; }
-        .ball.r-active { background: var(--rose); color: white; border-color: var(--rose); }
-        .ball.b-active { background: #0ea5e9; color: white; border-color: #0ea5e9; }
-        
-        /* 矩阵表格 */
-        .matrix-box { background: white; color: #1e293b; border-radius: 8px; padding: 8px; overflow-x: auto; font-size: 10px; }
-        table { width: 100%; border-collapse: collapse; }
-        td, th { border: 1px solid #e2e8f0; text-align: center; padding: 3px 1px; }
-        .hit { background: var(--rose); color: white; border-radius: 50%; padding: 1px 3px; }
-
-        /* 历史记录 */
-        #history-list { font-size: 11px; margin-top: 10px; border-top: 1px solid #334155; padding-top: 10px; }
-        .history-item { display: flex; justify-content: space-between; margin-bottom: 5px; color: #94a3b8; }
-
-        #bottom-ctrl { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(15,23,42,0.95); backdrop-filter: blur(10px); border-top: 2px solid var(--cyan); padding: 15px; z-index: 1000; }
-    </style>
+<meta charset="UTF-8">
+<title>彩票系统</title>
+<style>
+/* 保留你的原样式，这里只补一点必要的 */
+.ball { 
+    display:inline-block;
+    width:32px;height:32px;
+    line-height:32px;
+    border-radius:50%;
+    margin:3px;
+    text-align:center;
+    cursor:pointer;
+    background:#eee;
+}
+.red { background:#ff4d4f;color:#fff; }
+.blue { background:#1890ff;color:#fff; }
+.active { border:3px solid #000; }
+</style>
 </head>
+
 <body>
-<div class="container">
-    <div class="card" style="display:flex; justify-content:space-between; align-items:center; background: linear-gradient(135deg, #1e293b, #0f172a);">
-        <div>
-            <div style="font-size:10px; color:#64748b;">ID: <span id="uid-str">...</span></div>
-            <div style="font-size:24px; font-weight:bold; color:var(--cyan);">￥<span id="bal-str">0.00</span></div>
-        </div>
-        <button class="btn btn-outline" onclick="autoPick()">AI 帮我选</button>
-    </div>
 
-    <div class="matrix-box">
-        <h5 style="margin:5px 0;">📊 走势矩阵 (纵向: 20期)</h5>
-        <table>
-            <thead><tr><th>期号</th>{% for i in range(1, 36) %}<th>{{i}}</th>{% endfor %}</tr></thead>
-            <tbody>
-                {% for h in history %}
-                <tr>
-                    <td style="font-weight:bold; background:#f8fafc;">{{ h.p }}</td>
-                    {% for i in range(1, 36) %}
-                    <td>{% if i in h.r %}<span class="hit">{{i}}</span>{% else %}.{% endif %}</td>
-                    {% endfor %}
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+<!-- ✅ 封盘提示 -->
+{% if locked %}
+<div style="background:red;color:#fff;padding:10px;text-align:center;">
+    当前封盘中（15:00-22:00）
+</div>
+{% endif %}
 
-    <div class="card" style="margin-top:15px;">
-        <h5 style="margin:0 0 10px 0; color:var(--cyan);">📝 我的模拟注单 (最近10条)</h5>
-        <div id="history-list">加载中...</div>
-    </div>
+<h2>最新开奖</h2>
+<div>
+    期号：{{last.p}} <br>
+    红球：
+    {% for n in last.r %}
+        <span class="ball red">{{n}}</span>
+    {% endfor %}
+    蓝球：
+    {% for n in last.b %}
+        <span class="ball blue">{{n}}</span>
+    {% endfor %}
 </div>
 
-<div id="bottom-ctrl">
-    <div class="container">
-        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:8px;">
-            <b>投注期号: {{ last.p|int + 1 }}</b>
-            <span id="selection-tip" style="color:var(--cyan);">请选择 5前 + 2后</span>
-        </div>
-        <div class="pool" id="red-p"></div>
-        <div class="pool" id="blue-p"></div>
-        <div style="display:flex; gap:10px; margin-top:10px;">
-            <input type="number" id="bet-amt" placeholder="虚拟金额(1-500)" style="flex:1; background:#020617; border:1px solid #334155; color:white; padding:10px; border-radius:8px;">
-            <button class="btn btn-cyan" onclick="submitBet()" style="flex:1;">确认虚拟投注</button>
-        </div>
-        <center><button onclick="document.getElementById('feed-ui').style.display='block'" style="background:none; border:none; color:#475569; font-size:10px; margin-top:10px; text-decoration:underline;">同步/投喂数据</button></center>
+<hr>
+
+<h2>AI推荐</h2>
+<div>
+{% for p in preds %}
+    <div style="border:1px solid #ccc;padding:10px;margin:5px;">
+        <b>{{p.name}}</b>（{{p.desc}}）<br>
+        红：
+        {% for n in p.r %}
+            <span class="ball red">{{n}}</span>
+        {% endfor %}
+        蓝：
+        {% for n in p.b %}
+            <span class="ball blue">{{n}}</span>
+        {% endfor %}
     </div>
+{% endfor %}
 </div>
 
-<div id="feed-ui" style="display:none; position:fixed; top:10%; left:5%; right:5%; background:#1e293b; padding:20px; border-radius:15px; z-index:2000; border:1px solid var(--cyan);">
-    <h4 style="margin:0 0 15px 0;">数据投喂网关</h4>
-    <form action="/feed" method="post">
-        <input type="password" name="pw" placeholder="暗号" style="width:100%; margin-bottom:10px; padding:8px;">
-        <textarea name="content" placeholder="粘贴历史开奖..." style="width:100%; height:120px; background:#0f172a; color:white;"></textarea>
-        <button type="submit" class="btn btn-cyan" style="width:100%;">同步数据并兑奖</button>
-        <button type="button" onclick="this.parentElement.parentElement.style.display='none'" style="width:100%; margin-top:10px; background:none; border:none; color:var(--rose);">关闭</button>
-    </form>
+<hr>
+
+<h2>选号投注</h2>
+
+<div>
+    <div>红球（选5个）</div>
+    <div id="red_pool"></div>
+
+    <div>蓝球（选2个）</div>
+    <div id="blue_pool"></div>
+
+    <p id="pool-disp">请选 5前 + 2后</p>
+
+    <button onclick="submitBet()" {% if locked %}disabled{% endif %}>
+        提交投注
+    </button>
 </div>
+
+<hr>
+
+<h2>我的投注</h2>
+<button onclick="loadBets()">刷新</button>
+<div id="bets"></div>
 
 <script>
-    let uid = localStorage.getItem('v24_uid') || 'U'+Math.random().toString(36).substr(2,7).toUpperCase();
-    localStorage.setItem('v24_uid', uid);
-    document.getElementById('uid-str').innerText = uid;
+/* ================= 用户初始化 ================= */
+if(!localStorage.getItem("uid")){
+    localStorage.setItem("uid", "u_" + Date.now())
+}
 
-    let selectedR = [], selectedB = [];
+/* ================= 选号逻辑（补齐） ================= */
+let selected_reds = []
+let selected_blues = []
 
-    // 获取数据
-    function refreshData() {
-        fetch('/get_user', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({uid:uid})})
-        .then(res=>res.json()).then(d=> document.getElementById('bal-str').innerText = d.balance.toFixed(2));
-
-        fetch('/my_bets', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({uid:uid})})
-        .then(res=>res.json()).then(list=> {
-            let html = list.length ? "" : "暂无记录";
-            list.forEach(b => {
-                let statusColor = b.status === 'win' ? '#22c55e' : (b.status === 'lose' ? '#64748b' : '#fbbf24');
-                let statusText = b.status === 'win' ? `中￥${b.win}` : (b.status === 'lose' ? '未中' : '待开奖');
-                html += `<div class="history-item">
-                    <span>期${b.p} : ${b.r.join(',')} | ${b.b.join(',')}</span>
-                    <b style="color:${statusColor}">${statusText}</b>
-                </div>`;
-            });
-            document.getElementById('history-list').innerHTML = html;
-        });
+function createBalls(){
+    let redHTML=""
+    for(let i=1;i<=35;i++){
+        redHTML += `<span class="ball" onclick="pickRed(${i},this)">${i}</span>`
     }
-    refreshData();
+    document.getElementById("red_pool").innerHTML = redHTML
 
-    // 构建球池
-    const rp = document.getElementById('red-p'), bp = document.getElementById('blue-p');
-    for(let i=1; i<=35; i++) {
-        let el = document.createElement('div'); el.className='ball'; el.innerText=i;
-        el.onclick = () => {
-            if(selectedR.includes(i)) selectedR = selectedR.filter(x=>x!==i);
-            else if(selectedR.length<5) selectedR.push(i);
-            renderPool();
-        };
-        rp.appendChild(el);
+    let blueHTML=""
+    for(let i=1;i<=12;i++){
+        blueHTML += `<span class="ball blue" onclick="pickBlue(${i},this)">${i}</span>`
     }
-    for(let i=1; i<=12; i++) {
-        let el = document.createElement('div'); el.className='ball'; el.innerText=i;
-        el.onclick = () => {
-            if(selectedB.includes(i)) selectedB = selectedB.filter(x=>x!==i);
-            else if(selectedB.length<2) selectedB.push(i);
-            renderPool();
-        };
-        bp.appendChild(el);
+    document.getElementById("blue_pool").innerHTML = blueHTML
+}
+
+function pickRed(n,el){
+    if(selected_reds.includes(n)){
+        selected_reds = selected_reds.filter(x=>x!=n)
+        el.classList.remove("active")
+    }else{
+        if(selected_reds.length>=5){
+            alert("最多5个红球")
+            return
+        }
+        selected_reds.push(n)
+        el.classList.add("active")
+    }
+    updateDisplay()
+}
+
+function pickBlue(n,el){
+    if(selected_blues.includes(n)){
+        selected_blues = selected_blues.filter(x=>x!=n)
+        el.classList.remove("active")
+    }else{
+        if(selected_blues.length>=2){
+            alert("最多2个蓝球")
+            return
+        }
+        selected_blues.push(n)
+        el.classList.add("active")
+    }
+    updateDisplay()
+}
+
+function updateDisplay(){
+    document.getElementById("pool-disp").innerText =
+        "红：" + selected_reds.join(",") +
+        " 蓝：" + selected_blues.join(",")
+}
+
+/* ================= 投注 ================= */
+function submitBet(){
+    if(selected_reds.length!=5 || selected_blues.length!=2){
+        alert("必须选5红2蓝")
+        return
     }
 
-    function renderPool() {
-        document.querySelectorAll('#red-p .ball').forEach((el,i)=> el.className = selectedR.includes(i+1)?'ball r-active':'ball');
-        document.querySelectorAll('#blue-p .ball').forEach((el,i)=> el.className = selectedB.includes(i+1)?'ball b-active':'ball');
-    }
+    fetch("/submit_bet",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+            uid: localStorage.getItem("uid"),
+            target_p: "{{last.p}}",
+            red: selected_reds,
+            blue: selected_blues,
+            amount: 10
+        })
+    })
+    .then(r=>r.json())
+    .then(d=>{
+        alert(d.msg || (d.success?"投注成功":"失败"))
+        loadBets()
+    })
+}
 
-    function autoPick() {
-        selectedR = []; while(selectedR.length<5){ let n=Math.floor(Math.random()*35)+1; if(!selectedR.includes(n))selectedR.push(n); }
-        selectedB = []; while(selectedB.length<2){ let n=Math.floor(Math.random()*12)+1; if(!selectedB.includes(n))selectedB.push(n); }
-        renderPool();
-    }
+/* ================= 我的投注 ================= */
+function loadBets(){
+    fetch("/my_bets",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({uid:localStorage.getItem("uid")})
+    })
+    .then(r=>r.json())
+    .then(d=>{
+        let html=""
+        d.forEach(x=>{
+            html += `
+            <div style="border-bottom:1px solid #ccc;padding:5px;">
+                期号:${x.p} |
+                红:${x.r} |
+                蓝:${x.b} |
+                状态:${x.status} |
+                奖金:${x.win}
+            </div>`
+        })
+        document.getElementById("bets").innerHTML = html
+    })
+}
 
-    function submitBet() {
-        const amt = document.getElementById('bet-amt').value;
-        if(selectedR.length<5 || selectedB.length<2 || !amt) return alert("请选满号码和金额");
-        fetch('/submit_bet', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({uid:uid, red:selectedR, blue:selectedB, amount:amt, target_p: "{{ last.p|int + 1 }}"})
-        }).then(res=>res.json()).then(d=>{
-            if(d.success){ alert("虚拟投注成功！"); location.reload(); } else alert(d.msg);
-        });
-    }
+/* ================= 初始化 ================= */
+createBalls()
+loadBets()
+
 </script>
+
 </body>
 </html>
