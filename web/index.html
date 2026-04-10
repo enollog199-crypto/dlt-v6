@@ -3,81 +3,152 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DEXTRO AI | 终端</title>
+    <title>DEXTRO V22 | AI 建模终端</title>
     <style>
-        :root { --bg: #020617; --card: #1e293b; --cyan: #22d3ee; }
-        body { background: var(--bg); color: #f8fafc; font-family: sans-serif; margin: 0; padding: 10px; padding-bottom: 140px; }
-        .container { max-width: 800px; margin: 0 auto; }
-        .status { display: flex; justify-content: space-between; background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid var(--cyan); }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
-        .card { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid #334155; }
-        .ball { width: 30px; height: 30px; line-height: 30px; text-align: center; border-radius: 50%; font-weight: bold; display: inline-block; margin-right: 4px; font-size: 14px; }
-        .red { background: #f43f5e; color: white; }
-        .blue { background: #0891b2; color: white; }
-        .matrix { background: white; color: #1e293b; border-radius: 10px; padding: 10px; margin-top: 20px; overflow-x: auto; font-size: 11px; }
-        table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        th, td { border: 1px solid #ddd; padding: 5px 2px; text-align: center; }
-        .hit { background: #f43f5e; color: white; border-radius: 50%; width: 16px; height: 16px; display: inline-block; line-height: 16px; }
-        #feed { position: fixed; bottom: 0; left: 0; right: 0; background: #0f172a; border-top: 2px solid var(--cyan); padding: 15px; z-index: 999; }
-        textarea { width: 100%; height: 70px; background: #1e293b; color: white; border: 1px solid #444; padding: 8px; border-radius: 5px; margin: 8px 0; font-size: 12px; }
-        .btn { background: var(--cyan); color: #000; border: none; padding: 10px; width: 100%; border-radius: 5px; font-weight: bold; }
+        :root { --bg: #0f172a; --card: rgba(30, 41, 59, 0.7); --cyan: #22d3ee; --rose: #f43f5e; }
+        body { 
+            background: radial-gradient(circle at top, #1e293b 0%, #0f172a 100%);
+            color: #f8fafc; font-family: -apple-system, sans-serif; margin: 0; padding: 12px;
+        }
+        .container { max-width: 900px; margin: 0 auto; padding-bottom: 100px; }
+        
+        /* 玻璃拟态导航栏 */
+        .glass-nav { 
+            background: var(--card); backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;
+            padding: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;
+        }
+
+        /* 预测卡片样式升级 */
+        .pred-card { 
+            background: var(--card); border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 16px; padding: 16px; position: relative; overflow: hidden;
+            transition: transform 0.2s;
+        }
+        .pred-card:active { transform: scale(0.98); }
+        .pred-tag { font-size: 10px; background: rgba(0,0,0,0.3); padding: 2px 8px; border-radius: 20px; color: #94a3b8; }
+        
+        /* 号码球 */
+        .ball { width: 32px; height: 32px; line-height: 32px; text-align: center; border-radius: 50%; font-weight: 800; display: inline-block; margin-right: 4px; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2); }
+        .red { background: linear-gradient(135deg, #fb7185, #f43f5e); color: white; }
+        .blue { background: linear-gradient(135deg, #22d3ee, #0891b2); color: white; }
+
+        /* 命中检测标签 */
+        .hit-badge { margin-top: 12px; font-size: 11px; padding: 4px 10px; border-radius: 8px; background: rgba(255,255,255,0.05); display: flex; gap: 10px; }
+        .hit-fire { color: #fbbf24; font-weight: bold; }
+
+        /* 矩阵表格升级 */
+        .matrix-container { background: white; border-radius: 16px; padding: 12px; margin-top: 20px; overflow-x: auto; color: #1e293b; }
+        table { width: 100%; border-collapse: collapse; font-size: 10px; }
+        th { background: #f8fafc; padding: 8px 2px; border: 1px solid #e2e8f0; }
+        td { padding: 6px 2px; text-align: center; border: 1px solid #e2e8f0; }
+        .hit-dot { background: var(--rose); color: white; border-radius: 50%; width: 16px; height: 16px; display: inline-block; line-height: 16px; font-weight: bold; }
+
+        /* 底部操作区 */
+        #footer-action { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(15,23,42,0.9); backdrop-filter: blur(15px); border-top: 1px solid rgba(255,255,255,0.1); padding: 15px; z-index: 1000; }
+        .btn-glow { background: var(--cyan); color: #0f172a; border: none; padding: 12px 24px; border-radius: 12px; font-weight: 900; box-shadow: 0 0 15px rgba(34,211,238,0.4); }
     </style>
 </head>
 <body>
 <div class="container">
-    <div class="status">
-        <div id="clock" style="font-size: 18px; color: var(--cyan); font-weight: bold;">00:00:00</div>
-        <div style="text-align: right;">
-            <div style="font-weight: bold;">第 {{ last.p }} 期</div>
-            <div style="font-size: 10px; color: #94a3b8;">{{ last.date }}</div>
+    <div class="glass-nav">
+        <div>
+            <div style="font-size:11px; color:#94a3b8;">CORE ENGINE ACTIVE</div>
+            <div style="font-size:18px; font-weight:bold; color:var(--cyan);">NO.{{ last.p }} OVERVIEW</div>
+        </div>
+        <div style="text-align:right;">
+            <div style="font-size:11px; color:#94a3b8;">WALLET BALANCE</div>
+            <div style="font-size:18px; font-weight:bold;">￥{{ balance }}</div>
         </div>
     </div>
 
-    {% if history %}
-    <div class="grid">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
         {% for p in preds %}
-        <div class="card" style="border-top: 3px solid {{p.color}}">
-            <div style="font-size: 14px; color: {{p.color}}; font-weight: bold;">{{ p.name }}</div>
-            <div style="font-size: 10px; color: #888; margin-bottom: 8px;">{{ p.method }}</div>
-            <div style="white-space: nowrap;">
+        <div class="pred-card" style="border-left: 4px solid {{p.color}}">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:15px;">
+                <div>
+                    <div style="font-size:15px; font-weight:bold; color:{{p.color}}">{{ p.name }}</div>
+                    <div class="pred-tag">策略: {{ p.tag }}</div>
+                </div>
+                <div style="font-size:10px; color:#64748b; text-align:right;">基于近60期建模<br>深度权重计算中</div>
+            </div>
+            <div>
                 {% for n in p.r %}<div class="ball red">{{ "%02d"|format(n) }}</div>{% endfor %}
-                <span style="color: #444;">|</span>
-                {% for n in p.b %}<div class="ball blue">{{ "%02d"|format(n) }}</div>{% endfor %}
+                <span style="color:#334155; font-weight:bold; margin:0 4px;">|</span>
+                <div class="ball blue">{{ "%02d"|format(p.b[0]) }}</div>
+                <div class="ball blue">{{ "%02d"|format(p.b[1]) }}</div>
+            </div>
+            
+            <div class="hit-badge">
+                <span>上期检测:</span>
+                <span class="{% if p.rh > 0 %}hit-fire{% endif %}">红球命中 {{ p.rh }}</span>
+                <span class="{% if p.bh > 0 %}hit-fire{% endif %}">蓝球命中 {{ p.bh }}</span>
+                {% if p.rh + p.bh >= 3 %}<span class="hit-fire">🔥 高热度建议</span>{% endif %}
             </div>
         </div>
         {% endfor %}
     </div>
 
-    <div class="matrix">
-        <h4 style="margin: 0 0 10px 0;">走势矩阵 (近期)</h4>
+    <div class="matrix-container">
+        <h4 style="margin:0 0 12px 0; display:flex; justify-content:space-between; align-items:center;">
+            <span>📊 动态走势矩阵 (旧 → 新)</span>
+            <span style="font-size:10px; color:#94a3b8;">智能打点系统 v3.0</span>
+        </h4>
         <table>
-            <thead><tr><th>期号</th>{% for i in range(1, 36) %}<th>{{ i }}</th>{% endfor %}</tr></thead>
+            <thead>
+                <tr><th>期号</th>{% for i in range(1, 36) %}<th>{{ i }}</th>{% endfor %}</tr>
+            </thead>
             <tbody>
-                <tr style="background:#fffbe6;"><td>遗漏</td>{% for i in range(1, 36) %}<td>{{ r_omission.get(i|string, '0') }}</td>{% endfor %}</tr>
-                {% for h in history[:12] %}
-                <tr><td>{{ h.p }}</td>{% for i in range(1, 36) %}<td>{% if i in h.r %}<span class="hit">{{ i }}</span>{% else %}.{% endif %}</td>{% endfor %}</tr>
+                {% for h in history %}
+                <tr>
+                    <td style="font-weight:bold; background:#f1f5f9;">{{ h.p }}</td>
+                    {% for i in range(1, 36) %}
+                    <td>{% if i in h.r %}<span class="hit-dot">{{ i }}</span>{% else %}.{% endif %}</td>
+                    {% endfor %}
+                </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-    {% else %}
-    <div style="text-align:center; padding: 50px 20px; border: 2px dashed #334155; border-radius: 12px; color: #666;">
-        🚀 引擎已就绪，请投喂数据激活
+
+    <div style="margin-top:40px; border-top:1px dashed rgba(255,255,255,0.1); padding-top:20px;">
+        <div class="pred-card">
+            <h3 style="margin:0 0 15px 0; color:var(--cyan); font-size:14px;">📡 数据同步网关</h3>
+            <form id="feedForm">
+                <input type="password" name="pw" placeholder="终端访问密钥" style="width:100%; padding:12px; margin-bottom:10px; background:#020617; border:1px solid #334155; color:white; border-radius:8px;">
+                <textarea name="content" placeholder="输入最新开奖数据序列..." style="width:100%; height:80px; background:#020617; border:1px solid #334155; color:white; border-radius:8px; padding:10px; font-size:12px;"></textarea>
+                <button type="button" onclick="runSync()" style="width:100%; background: #1e293b; color: var(--cyan); border: 1px solid var(--cyan); padding:12px; border-radius:8px; font-weight:bold; margin-top:10px;">执行智能同步</button>
+            </form>
+        </div>
     </div>
-    {% endif %}
 </div>
 
-<div id="feed">
-    <form action="/feed" method="post">
-        <input type="password" name="pw" placeholder="暗号 (8888)" style="width:100%; background:#1e293b; color:white; border:1px solid #444; padding:8px; border-radius:5px; box-sizing:border-box;">
-        <textarea name="content" placeholder="粘贴多行数据..."></textarea>
-        <button type="submit" class="btn">批量投喂并激活</button>
-    </form>
+<div id="footer-action">
+    <div style="max-width:900px; margin:0 auto; display:flex; justify-content:space-between; align-items:center;">
+        <button class="btn-glow" onclick="doBet()">立即模拟投注</button>
+        <div style="text-align:right; line-height:1.2;">
+            <span style="font-size:10px; color:#64748b;">SYSTEM STATUS: <span style="color:#22c55e;">STABLE</span></span><br>
+            <span style="font-size:9px; color:#475569;">DEXTRO NEURAL NETWORK V22.0</span>
+        </div>
+    </div>
 </div>
 
 <script>
-    function tick() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('zh-CN', {hour12:false}); }
-    setInterval(tick, 1000); tick();
+    function runSync() {
+        const fd = new FormData(document.getElementById('feedForm'));
+        fetch('/feed', { method: 'POST', body: fd })
+        .then(r => r.text()).then(t => { alert(t); window.location.reload(); });
+    }
+    function doBet() {
+        const a = prompt("输入模拟金额 (1-500):");
+        if(a) {
+            fetch('/bet', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'amount='+a })
+            .then(r=>r.json()).then(d=>{
+                if(d.success){ alert("模拟交易已完成"); window.location.reload(); }
+                else alert(d.msg);
+            });
+        }
+    }
 </script>
 </body>
 </html>
